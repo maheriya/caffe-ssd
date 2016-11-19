@@ -1,0 +1,22 @@
+#!/bin/csh -f
+
+# Back up results of training
+set backup_str = `date | awk '{print $6$2$3}'`
+
+@ count = `/bin/ls models/ZFNet/VOC0712 | grep "SSD_300x300.$backup_str" | grep -c 'mark'`
+if ( $count == 0 ) then
+  set backup_str = ${backup_str}."mark1"
+else
+  @ str =  `/bin/ls models/ZFNet/VOC0712 | grep "SSD_300x300.$backup_str" | grep 'mark' | sed 's#.*mark##'` + 1
+  set backup_str = ${backup_str}."mark$str"
+endif
+
+echo "Backing up results into $backup_str suffix into models, jobs and results directories"
+
+foreach dir ( models/ZFNet/VOC0712 jobs/ZFNet/VOC0712 /opt/imagesets/VOCdevkit/results/VOC2007/ZF )
+  if ( -d "$dir/SSD_300x300" ) then
+    set cmd = ( cp -r $dir/SSD_300x300 $dir/SSD_300x300.$backup_str )
+    echo $cmd
+    $cmd
+  endif
+end

@@ -191,6 +191,210 @@ def CreateAnnotatedDataLayer(source, batch_size=32, backend=P.Data.LMDB,
         return data
 
 
+# ALEXNet (actually, CaffeNet, a slightly modified AlexNet) network
+def ALEXNetBody(net, from_layer, need_fc=True, fully_conv=False, reduced=False,
+        dilated=False, nopool=False, dropout=True, freeze_layers=[]):
+    kwargs = {
+            'param': [dict(lr_mult=1, decay_mult=1), dict(lr_mult=2, decay_mult=0)],
+            'weight_filler': dict(type='xavier'),
+            'bias_filler': dict(type='constant', value=0)}
+    lrn_params = {'lrn_param': {'local_size': 5,
+                                'alpha': 0.0001,
+                                'beta': 0.75,
+                                'norm_region': P.LRN.WITHIN_CHANNEL,
+                                'engine': P.LRN.CAFFE}}
+
+    assert from_layer in net.keys()
+    net.conv1 = L.Convolution(net[from_layer], num_output=96, pad=3, kernel_size=11, stride=4, **kwargs)
+    net.relu1 = L.ReLU(net.conv1, in_place=True)
+    if nopool:
+        name = 'conv1_p'
+        net[name] = L.Convolution(net.relu1, num_output=96, pad=1, kernel_size=3, stride=2, **kwargs)
+    else:
+        name = 'pool1'
+        net[name] = L.Pooling(net.relu1, pool=P.Pooling.MAX, pad=0, kernel_size=3, stride=2)
+    net.norm1 = L.LRN(net[name], **lrn_params)
+
+    net.conv2 = L.Convolution(net.norm1, num_output=256, group=2, pad=2, kernel_size=5, stride=1, **kwargs)
+    net.relu2 = L.ReLU(net.conv2, in_place=True)
+    if nopool:
+        name = 'conv2_p'
+        net[name] = L.Convolution(net.relu2, num_output=256, pad=1, kernel_size=3, stride=2, **kwargs)
+    else:
+        name = 'pool2'
+        net[name] = L.Pooling(net.relu2, pool=P.Pooling.MAX, pad=0, kernel_size=3, stride=2)
+    net.norm2 = L.LRN(net[name], **lrn_params)
+
+    net.conv3 = L.Convolution(net.norm2, num_output=384, pad=1, kernel_size=3, **kwargs)
+    net.relu3 = L.ReLU(net.conv3, in_place=True)
+
+    net.conv4 = L.Convolution(net.relu3, num_output=384, group=2, pad=1, kernel_size=3, **kwargs)
+    net.relu4 = L.ReLU(net.conv4, in_place=True)
+
+    net.conv5 = L.Convolution(net.relu4, num_output=256, group=2, pad=1, kernel_size=3, **kwargs)
+    net.relu5 = L.ReLU(net.conv5, in_place=True)
+
+    if need_fc:
+        if dilated:
+            if nopool:
+                name = 'conv5_p'
+                net[name] = L.Convolution(net.relu5, num_output=256, pad=1, kernel_size=3, stride=1, **kwargs)
+            else:
+                name = 'pool5'
+                net[name] = L.Pooling(net.relu5, pool=P.Pooling.MAX, pad=1, kernel_size=3, stride=2) ## Change back to stride=1?
+        else:
+            if nopool:
+                name = 'conv5_p'
+                net[name] = L.Convolution(net.relu5, num_output=256, pad=1, kernel_size=3, stride=2, **kwargs)
+            else:
+                name = 'pool5'
+                net[name] = L.Pooling(net.relu5, pool=P.Pooling.MAX, pad=1, kernel_size=3, stride=2)
+
+        if fully_conv:
+            if dilated:
+                if reduced:
+                    net.fc6_conv = L.Convolution(net[name], num_output=384, pad=6, kernel_size=3, dilation=6, **kwargs)
+                else:
+                    net.fc6_conv = L.Convolution(net[name], num_output=4096, pad=3, kernel_size=7, **kwargs)
+            else:
+                if reduced:
+                    net.fc6_conv = L.Convolution(net[name], num_output=384, pad=3, kernel_size=3, dilation=3, **kwargs)
+                else:
+                    net.fc6_conv = L.Convolution(net[name], num_output=4096, pad=3, kernel_size=7, **kwargs)
+
+            net.relu6 = L.ReLU(net.fc6_conv, in_place=True)
+            if dropout:
+                net.drop6 = L.Dropout(net.relu6, dropout_ratio=0.5, in_place=True)
+
+            if reduced:
+                net.fc7_conv = L.Convolution(net.relu6, num_output=384, pad=0, kernel_size=1, **kwargs)
+            else:
+                net.fc7_conv = L.Convolution(net.relu6, num_output=4096, pad=0, kernel_size=1, **kwargs)
+            net.relu7 = L.ReLU(net.fc7_conv, in_place=True)
+            if dropout:
+                net.drop7 = L.Dropout(net.relu7, dropout_ratio=0.5, in_place=True)
+        else:
+            net.fc6 = L.InnerProduct(net[name], num_output=4096)
+            net.relu6 = L.ReLU(net.fc6, in_place=True)
+            if dropout:
+                net.drop6 = L.Dropout(net.relu6, dropout_ratio=0.5, in_place=True)
+            net.fc7 = L.InnerProduct(net.relu6, num_output=4096)
+            net.relu7 = L.ReLU(net.fc7, in_place=True)
+            if dropout:
+                net.drop7 = L.Dropout(net.relu7, dropout_ratio=0.5, in_place=True)
+
+    # Update freeze layers.
+    kwargs['param'] = [dict(lr_mult=0, decay_mult=0), dict(lr_mult=0, decay_mult=0)]
+    layers = net.keys()
+    for freeze_layer in freeze_layers:
+        if freeze_layer in layers:
+            net.update(freeze_layer, kwargs)
+
+    return net
+
+# ZF (modified/optimized/enhanced AlexNet) network
+def ZFNetBody(net, from_layer, need_fc=True, fully_conv=False, reduced=False,
+        dilated=False, nopool=False, dropout=True, freeze_layers=[]):
+    kwargs = {
+            'param': [dict(lr_mult=1, decay_mult=1), dict(lr_mult=2, decay_mult=0)],
+            'weight_filler': dict(type='xavier'),
+            'bias_filler': dict(type='constant', value=0)}
+    lrn_params = {'lrn_param': {'local_size': 3,
+                                'alpha': 0.00005,
+                                'beta': 0.75,
+                                'norm_region': P.LRN.WITHIN_CHANNEL,
+                                'engine': P.LRN.CAFFE}}
+
+    assert from_layer in net.keys()
+    net.conv1 = L.Convolution(net[from_layer], num_output=96, pad=3, kernel_size=7, stride=2, **kwargs)
+
+    net.relu1 = L.ReLU(net.conv1, in_place=True)
+    net.norm1 = L.LRN(net.relu1, **lrn_params)
+    if nopool:
+        name = 'conv1_p'
+        net[name] = L.Convolution(net.norm1, num_output=96, pad=1, kernel_size=3, stride=2, **kwargs)
+    else:
+        name = 'pool1'
+        net[name] = L.Pooling(net.norm1, pool=P.Pooling.MAX, pad=1, kernel_size=3, stride=2)
+
+    net.conv2 = L.Convolution(net[name], num_output=256, pad=2, kernel_size=5, stride=2, **kwargs)
+    net.relu2 = L.ReLU(net.conv2, in_place=True)
+    net.norm2 = L.LRN(net.relu2, **lrn_params)
+
+    if nopool:
+        name = 'conv2_p'
+        net[name] = L.Convolution(net.norm2, num_output=256, pad=1, kernel_size=3, stride=2, **kwargs)
+    else:
+        name = 'pool2'
+        net[name] = L.Pooling(net.norm2, pool=P.Pooling.MAX, pad=1, kernel_size=3, stride=2)
+
+    net.conv3 = L.Convolution(net[name], num_output=384, pad=1, kernel_size=3, **kwargs)
+    net.relu3 = L.ReLU(net.conv3, in_place=True)
+
+    net.conv4 = L.Convolution(net.relu3, num_output=384, pad=1, kernel_size=3, **kwargs)
+    net.relu4 = L.ReLU(net.conv4, in_place=True)
+
+    net.conv5 = L.Convolution(net.relu4, num_output=256, pad=1, kernel_size=3, **kwargs)
+    net.relu5 = L.ReLU(net.conv5, in_place=True)
+
+    if need_fc:
+        if dilated:
+            if nopool:
+                name = 'conv5_p'
+                net[name] = L.Convolution(net.relu5, num_output=256, pad=1, kernel_size=3, stride=1, **kwargs)
+            else:
+                name = 'pool5'
+                net[name] = L.Pooling(net.relu5, pool=P.Pooling.MAX, pad=1, kernel_size=3, stride=1)
+        else:
+            if nopool:
+                name = 'conv5_p'
+                net[name] = L.Convolution(net.relu5, num_output=256, pad=1, kernel_size=3, stride=2, **kwargs)
+            else:
+                name = 'pool5'
+                net[name] = L.Pooling(net.relu5, pool=P.Pooling.MAX, pad=1, kernel_size=3, stride=2)
+
+        if fully_conv:
+            if dilated:
+                if reduced:
+                    net.fc6_conv = L.Convolution(net[name], num_output=1024, pad=6, kernel_size=3, dilation=6, **kwargs)
+                else:
+                    net.fc6_conv = L.Convolution(net[name], num_output=4096, pad=3, kernel_size=7, **kwargs)
+            else:
+                if reduced:
+                    net.fc6_conv = L.Convolution(net[name], num_output=1024, pad=3, kernel_size=3, dilation=3, **kwargs)
+                else:
+                    net.fc6_conv = L.Convolution(net[name], num_output=4096, pad=3, kernel_size=7, **kwargs)
+
+            net.relu6 = L.ReLU(net.fc6_conv, in_place=True)
+            if dropout:
+                net.drop6 = L.Dropout(net.relu6, dropout_ratio=0.5, in_place=True)
+
+            if reduced:
+                net.fc7_conv = L.Convolution(net.relu6, num_output=1024, pad=0, kernel_size=1, **kwargs)
+            else:
+                net.fc7_conv = L.Convolution(net.relu6, num_output=4096, pad=0, kernel_size=1, **kwargs)
+            net.relu7 = L.ReLU(net.fc7_conv, in_place=True)
+            if dropout:
+                net.drop7 = L.Dropout(net.relu7, dropout_ratio=0.5, in_place=True)
+        else:
+            net.fc6 = L.InnerProduct(net[name], num_output=4096)
+            net.relu6 = L.ReLU(net.fc6, in_place=True)
+            if dropout:
+                net.drop6 = L.Dropout(net.relu6, dropout_ratio=0.5, in_place=True)
+            net.fc7 = L.InnerProduct(net.relu6, num_output=4096)
+            net.relu7 = L.ReLU(net.fc7, in_place=True)
+            if dropout:
+                net.drop7 = L.Dropout(net.relu7, dropout_ratio=0.5, in_place=True)
+
+    # Update freeze layers.
+    kwargs['param'] = [dict(lr_mult=0, decay_mult=0), dict(lr_mult=0, decay_mult=0)]
+    layers = net.keys()
+    for freeze_layer in freeze_layers:
+        if freeze_layer in layers:
+            net.update(freeze_layer, kwargs)
+
+    return net
+
 def VGGNetBody(net, from_layer, need_fc=True, fully_conv=False, reduced=False,
         dilated=False, nopool=False, dropout=True, freeze_layers=[]):
     kwargs = {

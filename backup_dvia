@@ -1,0 +1,24 @@
+#!/bin/csh -f
+
+# Back up results of training
+set backup_str = `date | awk '{print $6$2$3}'`
+
+set sz = 150
+@ count = `/bin/ls models/ZFNet/DVIADETDB | grep "SSD_${sz}x${sz}.$backup_str" | grep -c 'mark'`
+if ( $count == 0 ) then
+  set backup_str = ${backup_str}."mark1"
+else
+  @ str =  `/bin/ls models/ZFNet/DVIADETDB | grep "SSD_${sz}x${sz}.$backup_str" | grep 'mark' | sed 's#.*mark##'` + 1
+  set backup_str = ${backup_str}."mark$str"
+endif
+
+echo "Backing up results for ZF - DVIADETDB into $backup_str suffix into models, jobs and results directories"
+#exit
+
+foreach dir ( models/ZFNet/DVIADETDB jobs/ZFNet/DVIADETDB /IMAGESETS/DVIADetDB/DVIAdevkit/results_ssd_zf/DVIADETDB )
+  if ( -d "$dir/SSD_${sz}x${sz}" ) then
+    set cmd = ( cp -r $dir/SSD_${sz}x${sz} $dir/SSD_${sz}x${sz}.$backup_str )
+    echo $cmd
+    $cmd
+  endif
+end

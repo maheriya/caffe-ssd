@@ -1,0 +1,12 @@
+#!/bin/csh -f
+
+# Back up results of training
+echo "Removing prevous VGG training outputs from models, jobs and results directories"
+
+foreach dir ( models/VGGNet/VOC0712 jobs/VGGNet/VOC0712 /opt/imagesets/VOCdevkit/results/VOC2007 )
+  if ( -d "$dir/SSD_300x300" ) then
+    set cmd = ( rm -rf $dir/SSD_300x300 )
+    echo $cmd
+    $cmd
+  endif
+end

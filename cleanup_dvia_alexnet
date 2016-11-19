@@ -1,0 +1,12 @@
+#!/bin/csh -f
+
+# Back up results of training
+echo "Removing prevous training outputs from models, jobs and results directories for DVIADetDB ALEXNet"
+
+foreach dir ( models/ALEXNet/DVIADETDB jobs/ALEXNet/DVIADETDB /IMAGESETS/DVIADetDB/DVIAdevkit/results_ssd_alexnet/DVIADETDB )
+  if ( -d "$dir/SSD_150x150" ) then
+    set cmd = ( rm -rf $dir/SSD_150x150 )
+    echo $cmd
+    $cmd
+  endif
+end

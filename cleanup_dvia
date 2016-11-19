@@ -1,0 +1,12 @@
+#!/bin/csh -f
+
+# Back up results of training
+echo "Removing prevous training outputs from models, jobs and results directories for DVIADetDB"
+
+foreach dir ( models/ZFNet/DVIADETDB jobs/ZFNet/DVIADETDB /IMAGESETS/DVIADetDB/DVIAdevkit/results_ssd_zf/DVIADETDB )
+  if ( -d "$dir/SSD_300x300" ) then
+    set cmd = ( rm -rf $dir/SSD_300x300 )
+    echo $cmd
+    $cmd
+  endif
+end
