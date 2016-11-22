@@ -3,9 +3,11 @@
 # Back up results of training
 echo "Removing prevous training outputs from models, jobs and results directories for DVIADetDB"
 
+set sh = 200
+set sw = 150
 foreach dir ( models/ZFNet/DVIADETDB jobs/ZFNet/DVIADETDB /IMAGESETS/DVIADetDB/DVIAdevkit/results_ssd_zf/DVIADETDB )
-  if ( -d "$dir/SSD_300x300" ) then
-    set cmd = ( rm -rf $dir/SSD_300x300 )
+  if ( -d "$dir/SSD_${sw}x${sh}" ) then
+    set cmd = ( rm -rf $dir/SSD_${sw}x${sh} )
     echo $cmd
     $cmd
   endif

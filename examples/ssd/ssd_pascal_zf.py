@@ -10,6 +10,8 @@ import stat
 import subprocess
 import sys
 
+PRETRAINED = False ## FIXME: Bring back when pretrained_model is available
+
 # Add extra layers on top of a "base" network (e.g. VGGNet or Inception or ZFNet).
 def AddExtraLayers(net, use_batchnorm=True):
     use_relu = True
@@ -22,7 +24,7 @@ def AddExtraLayers(net, use_batchnorm=True):
 
     from_layer = out_layer
     out_layer = "conv6_2"
-    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 512, 3, 1, 2)
+    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 384, 3, 1, 2)
 
     for i in xrange(7, 9):
       from_layer = out_layer
@@ -48,7 +50,7 @@ caffe_root = os.getcwd()
 # Set true if you want to start training right after generating all files.
 run_soon = True
 # Set true if you want to load from most recently saved snapshot.
-# Otherwise, we will load from the pretrain_model defined below.
+# Otherwise, we will load from the pretrain_model defined below if PRETRAINED is True, else, train from scratch
 resume_training = False
 # If true, Remove old model files.
 remove_old_models = False
@@ -58,8 +60,8 @@ train_data = "examples/VOC0712/VOC0712_trainval_lmdb"
 # The database file for testing data. Created by data/VOC0712/create_data.sh
 test_data = "examples/VOC0712/VOC0712_test_lmdb"
 # Specify the batch sampler.
-resize_width = 300
-resize_height = 300
+resize_width = 150
+resize_height = 200
 resize = "{}x{}".format(resize_width, resize_height)
 batch_sampler = [
         {
@@ -183,10 +185,10 @@ test_transform_param = {
 use_batchnorm = False
 # Use different initial learning rate.
 if use_batchnorm:
-    base_lr = 0.0002
+    base_lr = 0.00001
 else:
     # A learning rate for batch_size = 1, num_gpus = 1.
-    base_lr = 0.00001
+    base_lr = 0.000001
 
 # Modify the job name if you want.
 job_name = "SSD_{}".format(resize)
@@ -215,7 +217,11 @@ job_file = "{}/{}.sh".format(job_dir, model_name)
 # Stores the test image names and sizes. Created by data/VOC0712/create_list.sh
 name_size_file = "data/VOC0712/test_name_size.txt"
 # The pretrained model. ZFNet.
-pretrain_model = "models/ZFNet/ZF.v2.caffemodel"
+if PRETRAINED:
+    pretrain_model = "models/ZFNet/ZF.v2.caffemodel"
+else:
+    pretrain_model = ""
+
 # Stores LabelMapItem.
 label_map_file = "data/VOC0712/labelmap_voc.prototxt"
 
@@ -250,7 +256,7 @@ loss_param = {
 
 # parameters for generating priors.
 # minimum dimension of input image
-min_dim = 300
+min_dim = resize_width
 # conv2   ==> 38 x 38
 # conv5   ==> 20 x 20
 # fc7_conv   ==> 20 x 20
@@ -289,8 +295,8 @@ gpulist = gpus.split(",")
 num_gpus = len(gpulist)
 
 # Divide the mini-batch to different GPUs.
-batch_size = 32 # FIXME: was 32
-accum_batch_size = 32 # FIXME: was 32
+batch_size = 32
+accum_batch_size = 32
 iter_size = accum_batch_size / batch_size
 solver_mode = P.Solver.CPU
 device_id = 0
@@ -311,7 +317,10 @@ elif normalization_mode == P.Loss.FULL:
   base_lr *= 2000.
 
 # Which layers to freeze (no backward) during training.
-freeze_layers = ['conv1', 'conv2']
+if PRETRAINED:
+  freeze_layers = ['conv1', 'conv2']
+else:
+  freeze_layers = []
 
 # Evaluate on whole test set.
 num_test_image = 4952
@@ -329,7 +338,7 @@ solver_param = {
     'momentum': 0.0,
     'iter_size': iter_size,
     'max_iter': 100000,
-    'snapshot': 25000,
+    'snapshot': 20000,
     'display': 50,
     'type': "RMSProp",
     'rms_decay': 0.98,
@@ -378,7 +387,8 @@ det_eval_param = {
 check_if_exist(train_data)
 check_if_exist(test_data)
 check_if_exist(label_map_file)
-check_if_exist(pretrain_model)
+if PRETRAINED:
+  check_if_exist(pretrain_model)
 make_if_not_exist(save_dir)
 make_if_not_exist(job_dir)
 make_if_not_exist(snapshot_dir)
@@ -398,7 +408,7 @@ mbox_layers = CreateMultiBoxHead(net, data_layer='data', from_layers=mbox_source
         use_batchnorm=use_batchnorm, min_sizes=min_sizes, max_sizes=max_sizes,
         aspect_ratios=aspect_ratios, normalizations=normalizations,
         num_classes=num_classes, share_location=share_location, flip=flip, clip=clip,
-        prior_variance=prior_variance, kernel_size=3, pad=1)
+        prior_variance=prior_variance, kernel_size=3, pad=1, conf_postfix='_{}'.format(resize_width), loc_postfix='_{}'.format(resize_width))
 
 # Create the MultiBoxLossLayer.
 name = "mbox_loss"
@@ -427,7 +437,7 @@ mbox_layers = CreateMultiBoxHead(net, data_layer='data', from_layers=mbox_source
         use_batchnorm=use_batchnorm, min_sizes=min_sizes, max_sizes=max_sizes,
         aspect_ratios=aspect_ratios, normalizations=normalizations,
         num_classes=num_classes, share_location=share_location, flip=flip, clip=clip,
-        prior_variance=prior_variance, kernel_size=3, pad=1)
+        prior_variance=prior_variance, kernel_size=3, pad=1, conf_postfix='_{}'.format(resize_width), loc_postfix='_{}'.format(resize_width))
 
 conf_name = "mbox_conf"
 if multibox_loss_param["conf_loss_type"] == P.MultiBoxLoss.SOFTMAX:
@@ -490,7 +500,10 @@ for file in os.listdir(snapshot_dir):
     if iter > max_iter:
       max_iter = iter
 
-train_src_param = '--weights="{}" \\\n'.format(pretrain_model)
+if PRETRAINED:
+  train_src_param = '--weights="{}" \\\n'.format(pretrain_model)
+else:
+  train_src_param = ''
 if resume_training:
   if max_iter > 0:
     train_src_param = '--snapshot="{}_iter_{}.solverstate" \\\n'.format(snapshot_prefix, max_iter)
