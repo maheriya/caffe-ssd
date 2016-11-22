@@ -1,6 +1,7 @@
 cur_dir=$(cd $( dirname ${BASH_SOURCE[0]} ) && pwd )
 root_dir=$cur_dir/../..
 
+echo "Changing directory to $root_dir"
 cd $root_dir
 
 redo=false

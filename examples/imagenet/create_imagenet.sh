@@ -3,16 +3,17 @@
 # N.B. set the path to the imagenet train + val data dirs
 set -e
 
-EXAMPLE=examples/imagenet
+LMDBDIR=/IMAGESETS/OTHER/ImageNet
 DATA=data/ilsvrc12
 TOOLS=build/tools
 
-TRAIN_DATA_ROOT=/path/to/imagenet/train/
-VAL_DATA_ROOT=/path/to/imagenet/val/
+IMAGENET_CLSDIR=/IMAGESETS/OTHER/ImageNet/ILSVRC/Data/CLS-LOC
+TRAIN_DATA_ROOT=$IMAGENET_CLSDIR/train/
+VAL_DATA_ROOT=$IMAGENET_CLSDIR/val/
 
 # Set RESIZE=true to resize the images to 256x256. Leave as false if images have
 # already been resized using another tool.
-RESIZE=false
+RESIZE=true
 if $RESIZE; then
   RESIZE_HEIGHT=256
   RESIZE_WIDTH=256
@@ -20,6 +21,8 @@ else
   RESIZE_HEIGHT=0
   RESIZE_WIDTH=0
 fi
+echo "RESIZE_HEIGHT = " $RESIZE_HEIGHT
+echo "RESIZE_WIDTH = " $RESIZE_WIDTH
 
 if [ ! -d "$TRAIN_DATA_ROOT" ]; then
   echo "Error: TRAIN_DATA_ROOT is not a path to a directory: $TRAIN_DATA_ROOT"
@@ -43,7 +46,7 @@ GLOG_logtostderr=1 $TOOLS/convert_imageset \
     --shuffle \
     $TRAIN_DATA_ROOT \
     $DATA/train.txt \
-    $EXAMPLE/ilsvrc12_train_lmdb
+    $LMDBDIR/ilsvrc12_train_lmdb
 
 echo "Creating val lmdb..."
 
@@ -53,6 +56,6 @@ GLOG_logtostderr=1 $TOOLS/convert_imageset \
     --shuffle \
     $VAL_DATA_ROOT \
     $DATA/val.txt \
-    $EXAMPLE/ilsvrc12_val_lmdb
+    $LMDBDIR/ilsvrc12_val_lmdb
 
 echo "Done."

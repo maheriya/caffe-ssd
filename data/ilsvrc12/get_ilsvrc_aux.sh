@@ -8,14 +8,18 @@
 # - the training splits with labels
 
 DIR="$( cd "$(dirname "$0")" ; pwd -P )"
+echo "Changing directory to $DIR"
 cd "$DIR"
 
 echo "Downloading..."
 
-wget -c http://dl.caffe.berkeleyvision.org/caffe_ilsvrc12.tar.gz
+if [[ ! -f "caffe_ilsvrc12.tar.gz" ]]; then
+  wget -c http://dl.caffe.berkeleyvision.org/caffe_ilsvrc12.tar.gz
+fi
 
 echo "Unzipping..."
 
-tar -xf caffe_ilsvrc12.tar.gz && rm -f caffe_ilsvrc12.tar.gz
+#tar -xf caffe_ilsvrc12.tar.gz && rm -f caffe_ilsvrc12.tar.gz
+tar xf caffe_ilsvrc12.tar.gz
 
 echo "Done."
