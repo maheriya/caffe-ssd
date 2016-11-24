@@ -10,7 +10,8 @@ import stat
 import subprocess
 import sys
 
-PRETRAINED = False ## FIXME: Bring back when pretrained_model is available
+PRETRAINED = False
+REDUCED = True
 
 # Add extra layers on top of a "base" network (e.g. VGGNet or Inception or ZFNet).
 def AddExtraLayers(net, use_batchnorm=True):
@@ -20,11 +21,17 @@ def AddExtraLayers(net, use_batchnorm=True):
     from_layer = net.keys()[-1]
     # TODO(weiliu89): Construct the name using the last layer to avoid duplication.
     out_layer = "conv6_1"
-    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 256, 1, 0, 1)
+    if REDUCED:
+      ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 128, 1, 0, 1)
+    else:
+      ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 256, 1, 0, 1)
 
     from_layer = out_layer
     out_layer = "conv6_2"
-    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 384, 3, 1, 2)
+    if REDUCED:
+      ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 256, 3, 1, 2)
+    else:
+      ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 512, 3, 1, 2)
 
     for i in xrange(7, 9):
       from_layer = out_layer
@@ -60,8 +67,8 @@ train_data = "examples/VOC0712/VOC0712_trainval_lmdb"
 # The database file for testing data. Created by data/VOC0712/create_data.sh
 test_data = "examples/VOC0712/VOC0712_test_lmdb"
 # Specify the batch sampler.
-resize_width = 150
-resize_height = 200
+resize_width = 300
+resize_height = 300
 resize = "{}x{}".format(resize_width, resize_height)
 batch_sampler = [
         {
@@ -185,10 +192,10 @@ test_transform_param = {
 use_batchnorm = False
 # Use different initial learning rate.
 if use_batchnorm:
-    base_lr = 0.00001
+    base_lr = 0.000005
 else:
     # A learning rate for batch_size = 1, num_gpus = 1.
-    base_lr = 0.000001
+    base_lr = 0.0000005
 
 # Modify the job name if you want.
 job_name = "SSD_{}".format(resize)
@@ -264,7 +271,7 @@ min_dim = resize_width
 # conv7_2 ==>  5 x 5
 # conv8_2 ==>  3 x 3
 # pool6   ==>  1 x 1
-mbox_source_layers = ['fc7_conv', 'conv6_2', 'conv7_2', 'conv8_2', 'pool6']
+mbox_source_layers =  ['conv3', 'fc7_conv', 'conv6_2', 'conv7_2', 'conv8_2', 'pool6']
 #mbox_source_layers = ['conv2', 'conv5', 'conv6_2', 'conv7_2', 'conv8_2', 'pool6']
 # in percent %
 min_ratio = 20
@@ -279,7 +286,7 @@ min_sizes = [min_dim * 10 / 100.] + min_sizes
 max_sizes = [[]] + max_sizes
 aspect_ratios = [[2], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3]]
 # L2 normalize conv4_3.
-normalizations = [-1, -1, -1, -1, -1]
+normalizations = [20, -1, -1, -1, -1, -1] ## len(normalizations) must match len(mbox_source_layers)
 # variance used to encode/decode prior bboxes.
 if code_type == P.PriorBox.CENTER_SIZE:
   prior_variance = [0.1, 0.1, 0.2, 0.2]
@@ -399,7 +406,7 @@ net.data, net.label = CreateAnnotatedDataLayer(train_data, batch_size=batch_size
         train=True, output_label=True, label_map_file=label_map_file,
         transform_param=train_transform_param, batch_sampler=batch_sampler)
 
-ZFNetBody(net, from_layer='data', fully_conv=True, reduced=True, dilated=True,
+rZFNetBody(net, from_layer='data', fully_conv=True, reduced=REDUCED, dilated=True,
         dropout=False, freeze_layers=freeze_layers)
 
 AddExtraLayers(net, use_batchnorm)
@@ -428,7 +435,7 @@ net.data, net.label = CreateAnnotatedDataLayer(test_data, batch_size=test_batch_
         train=False, output_label=True, label_map_file=label_map_file,
         transform_param=test_transform_param)
 
-ZFNetBody(net, from_layer='data', fully_conv=True, reduced=True, dilated=True,
+rZFNetBody(net, from_layer='data', fully_conv=True, reduced=REDUCED, dilated=True,
         dropout=False, freeze_layers=freeze_layers)
 
 AddExtraLayers(net, use_batchnorm)
