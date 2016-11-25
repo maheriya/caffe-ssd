@@ -3,9 +3,17 @@
 # Back up results of training
 echo "Removing prevous training outputs from models, jobs and results directories for DVIADetDB ALEXNet"
 
+if ($#argv != 2) then
+  set sh = 300
+  set sw = 300
+else
+  set sh = $argv[1]
+  set sw = $argv[2]
+endif
+
 foreach dir ( models/ALEXNet/DVIADETDB jobs/ALEXNet/DVIADETDB /IMAGESETS/DVIADetDB/DVIAdevkit/results_ssd_alexnet/DVIADETDB )
-  if ( -d "$dir/SSD_150x150" ) then
-    set cmd = ( rm -rf $dir/SSD_150x150 )
+  if ( -d "$dir/SSD_${sw}x${sh}" ) then
+    set cmd = ( rm -rf $dir/SSD_${sw}x${sh} )
     echo $cmd
     $cmd
   endif

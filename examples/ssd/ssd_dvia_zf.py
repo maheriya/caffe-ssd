@@ -22,14 +22,14 @@ def AddExtraLayers(net, use_batchnorm=True):
     # TODO(weiliu89): Construct the name using the last layer to avoid duplication.
     out_layer = "conv6_1"
     if REDUCED:
-      ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 128, 1, 0, 1)
+      ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 192, 1, 0, 1)
     else:
       ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 256, 1, 0, 1)
 
     from_layer = out_layer
     out_layer = "conv6_2"
     if REDUCED:
-      ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 256, 3, 1, 2)
+      ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 384, 3, 1, 2)
     else:
       ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 512, 3, 1, 2)
 
@@ -266,14 +266,14 @@ loss_param = {
 # parameters for generating priors.
 # minimum dimension of input image
 min_dim = resize_width
-# conv2   ==> 38 x 38
-# conv5   ==> 20 x 20
-# fc7_conv   ==> 20 x 20
+# conv4   ==> 38 x 38
+# conv5   ==> 19 x 19
+# fc7_conv   ==> 19 x 19
 # conv6_2 ==>  10 x 10
 # conv7_2 ==>  5 x 5
 # conv8_2 ==>  3 x 3
 # pool6   ==>  1 x 1
-mbox_source_layers =  ['conv3', 'fc7_conv', 'conv6_2', 'conv7_2', 'conv8_2', 'pool6']
+mbox_source_layers =  ['conv4', 'fc7_conv', 'conv6_2', 'conv7_2', 'conv8_2', 'pool6']
 #mbox_source_layers = ['conv2', 'conv5', 'conv6_2', 'conv7_2', 'conv8_2', 'pool6']
 # in percent %
 min_ratio = 20
@@ -327,7 +327,6 @@ elif normalization_mode == P.Loss.FULL:
 
 # Which layers to freeze (no backward) during training.
 if PRETRAINED:
-  #freeze_layers = ['conv1'] ## For less than 300x300, conv2 is tapped for mbox regression; better not to freeze it##, 'conv2']
   freeze_layers = ['conv1', 'conv2']
 else:
   freeze_layers = []

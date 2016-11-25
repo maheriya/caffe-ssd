@@ -205,6 +205,7 @@ def ALEXNetBody(net, from_layer, need_fc=True, fully_conv=False, reduced=False,
                                 'engine': P.LRN.CAFFE}}
 
     assert from_layer in net.keys()
+    # Version R2
     net.conv1 = L.Convolution(net[from_layer], num_output=96, pad=3, kernel_size=11, stride=4, **kwargs)
     net.relu1 = L.ReLU(net.conv1, in_place=True)
     if nopool:
@@ -241,7 +242,7 @@ def ALEXNetBody(net, from_layer, need_fc=True, fully_conv=False, reduced=False,
                 net[name] = L.Convolution(net.relu5, num_output=256, pad=1, kernel_size=3, stride=1, **kwargs)
             else:
                 name = 'pool5'
-                net[name] = L.Pooling(net.relu5, pool=P.Pooling.MAX, pad=1, kernel_size=3, stride=2) ## Change back to stride=1?
+                net[name] = L.Pooling(net.relu5, pool=P.Pooling.MAX, pad=1, kernel_size=3, stride=1) ## R2; R1 was stride=2
         else:
             if nopool:
                 name = 'conv5_p'
@@ -306,27 +307,28 @@ def rZFNetBody(net, from_layer, need_fc=True, fully_conv=False, reduced=False,
                                 'engine': P.LRN.CAFFE}}
 
     assert from_layer in net.keys()
-    net.conv1 = L.Convolution(net[from_layer], num_output=64, pad=2, kernel_size=5, stride=2, **kwargs)
+    # Version R3
+    net.conv1 = L.Convolution(net[from_layer], num_output=96, pad=3, kernel_size=7, stride=4, **kwargs)
     net.relu1 = L.ReLU(net.conv1, in_place=True)
     net.norm1 = L.LRN(net.relu1, **lrn_params)
 
-    net.conv2 = L.Convolution(net.norm1, num_output=128, pad=1, kernel_size=3, stride=2, **kwargs)
+    net.conv2 = L.Convolution(net.norm1, num_output=192, pad=1, kernel_size=3, stride=2, **kwargs)
     net.relu2 = L.ReLU(net.conv2, in_place=True)
     net.norm2 = L.LRN(net.relu2, **lrn_params)
 
-    net.conv3 = L.Convolution(net.norm2, num_output=196, pad=1, kernel_size=3, stride=2, **kwargs)
+    net.conv3 = L.Convolution(net.norm2, num_output=192, pad=3, kernel_size=3, stride=1, dilation=3, **kwargs)
     net.relu3 = L.ReLU(net.conv3, in_place=True)
 
-    net.conv4 = L.Convolution(net.relu3, num_output=196, pad=1, kernel_size=3, stride=2, **kwargs)
+    net.conv4 = L.Convolution(net.relu3, num_output=192, pad=4, kernel_size=3, stride=1, dilation=4, **kwargs)
     net.relu4 = L.ReLU(net.conv4, in_place=True)
 
-    net.conv5 = L.Convolution(net.relu4, num_output=196, pad=1, kernel_size=3, **kwargs)
+    net.conv5 = L.Convolution(net.relu4, num_output=192, pad=1, kernel_size=3, stride=2, **kwargs)
     net.relu5 = L.ReLU(net.conv5, in_place=True)
 
-    net.fc6_conv = L.Convolution(net.relu5, num_output=256, pad=6, kernel_size=3, dilation=6, **kwargs)
+    net.fc6_conv = L.Convolution(net.relu5, num_output=384, pad=5, kernel_size=3, dilation=5, **kwargs)
     net.relu6 = L.ReLU(net.fc6_conv, in_place=True)
 
-    net.fc7_conv = L.Convolution(net.relu6, num_output=256, pad=0, kernel_size=1, **kwargs)
+    net.fc7_conv = L.Convolution(net.relu6, num_output=384, pad=0, kernel_size=1, **kwargs)
     net.relu7 = L.ReLU(net.fc7_conv, in_place=True)
 
     # Update freeze layers.

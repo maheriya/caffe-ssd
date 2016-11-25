@@ -10,7 +10,10 @@ import stat
 import subprocess
 import sys
 
-# Add extra layers on top of a "base" network (e.g. VGGNet or Inception or ALEXNet).
+PRETRAINED = True
+REDUCED = True
+
+# Add extra layers on top of a "base" network (e.g. VGGNet or Inception or ZFNet).
 def AddExtraLayers(net, use_batchnorm=True):
     use_relu = True
 
@@ -34,8 +37,8 @@ def AddExtraLayers(net, use_batchnorm=True):
       ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 256, 3, 1, 2)
 
     # Add global pooling layer.
-    ##name = net.keys()[-1]
-    ##net.pool6 = L.Pooling(net[name], pool=P.Pooling.AVE, global_pooling=True)
+    name = net.keys()[-1]
+    net.pool6 = L.Pooling(net[name], pool=P.Pooling.AVE, global_pooling=True)
 
     return net
 
@@ -48,7 +51,7 @@ caffe_root = os.getcwd()
 # Set true if you want to start training right after generating all files.
 run_soon = True
 # Set true if you want to load from most recently saved snapshot.
-# Otherwise, we will load from the pretrain_model defined below.
+# Otherwise, we will load from the pretrain_model defined below if PRETRAINED is True, else, train from scratch
 resume_training = False
 # If true, Remove old model files.
 remove_old_models = False
@@ -58,8 +61,8 @@ train_data = "examples/DVIADETDB/DVIADETDB_trainval_lmdb"
 # The database file for testing data. Created by data/DVIADETDB/create_data.sh
 test_data = "examples/DVIADETDB/DVIADETDB_test_lmdb"
 # Specify the batch sampler.
-resize_width = 150
-resize_height = 150
+resize_width  = 200
+resize_height = 200
 resize = "{}x{}".format(resize_width, resize_height)
 batch_sampler = [
         {
@@ -214,8 +217,13 @@ job_file = "{}/{}.sh".format(job_dir, model_name)
 
 # Stores the test image names and sizes. Created by data/DVIADETDB/create_list.sh
 name_size_file = "data/DVIADETDB/test_name_size.txt"
-# The pretrained model. ALEXNet (CaffeNet version).
-pretrain_model = "models/bvlc_reference_caffenet/bvlc_reference_caffenet.caffemodel"
+# The pretrained model. ZFNet.
+if PRETRAINED:
+    # The pretrained model. ALEXNet (CaffeNet version).
+    pretrain_model = "models/bvlc_reference_caffenet/bvlc_reference_caffenet.caffemodel"
+else:
+    pretrain_model = ""
+
 # Stores LabelMapItem.
 label_map_file = "data/DVIADETDB/labelmap_dviadetdb.prototxt"
 
@@ -250,15 +258,17 @@ loss_param = {
 
 # parameters for generating priors.
 # minimum dimension of input image
-min_dim = 150
-# conv2     ==> 18 x 18
-# conv3/4/5 ==>  9 x  9
-# fc7_conv  ==>  5 x  5
-# conv6_2   ==>  3 x  3
-# conv7_2   ==>  2 x  2
-# conv8_2   ==>  1 x  1
-mbox_source_layers = ['conv5', 'fc7_conv', 'conv6_2', 'conv7_2', 'conv8_2']
-#mbox_source_layers = ['conv2', 'conv5', 'conv6_2', 'conv7_2', 'conv8_2', 'pool6']
+min_dim = resize_width
+# For 200x200
+# conv2     ==> 24 x 24
+# conv3/4/5 ==> 12 x 12
+# fc7_conv  ==> 12 x 12
+# conv6_2   ==>  6 x  6
+# conv7_2   ==>  3 x  3
+# conv8_2   ==>  2 x  2
+# pool6     ==>  1 x  1
+#mbox_source_layers = ['conv5', 'fc7_conv', 'conv6_2', 'conv7_2', 'conv8_2']
+mbox_source_layers = ['conv2', 'fc7_conv', 'conv6_2', 'conv7_2', 'conv8_2', 'pool6']
 # in percent %
 min_ratio = 20
 max_ratio = 95
@@ -272,7 +282,7 @@ min_sizes = [min_dim * 10 / 100.] + min_sizes
 max_sizes = [[]] + max_sizes
 aspect_ratios = [[2], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3]]
 # L2 normalize conv4_3.
-normalizations = [-1, -1, -1, -1, -1]
+normalizations = [-1, -1, -1, -1, -1, -1] ## len(normalizations) must match len(mbox_source_layers)
 # variance used to encode/decode prior bboxes.
 if code_type == P.PriorBox.CENTER_SIZE:
   prior_variance = [0.1, 0.1, 0.2, 0.2]
@@ -288,8 +298,8 @@ gpulist = gpus.split(",")
 num_gpus = len(gpulist)
 
 # Divide the mini-batch to different GPUs.
-batch_size = 32 # FIXME: was 32
-accum_batch_size = 32 # FIXME: was 32
+batch_size = 32
+accum_batch_size = 32
 iter_size = accum_batch_size / batch_size
 solver_mode = P.Solver.CPU
 device_id = 0
@@ -310,7 +320,10 @@ elif normalization_mode == P.Loss.FULL:
   base_lr *= 2000.
 
 # Which layers to freeze (no backward) during training.
-freeze_layers = ['conv1', 'conv2']
+if PRETRAINED:
+  freeze_layers = ['conv1', 'conv2']
+else:
+  freeze_layers = []
 
 # Evaluate on whole test set.
 num_test_image = 4952
@@ -377,7 +390,8 @@ det_eval_param = {
 check_if_exist(train_data)
 check_if_exist(test_data)
 check_if_exist(label_map_file)
-check_if_exist(pretrain_model)
+if PRETRAINED:
+  check_if_exist(pretrain_model)
 make_if_not_exist(save_dir)
 make_if_not_exist(job_dir)
 make_if_not_exist(snapshot_dir)
@@ -388,7 +402,7 @@ net.data, net.label = CreateAnnotatedDataLayer(train_data, batch_size=batch_size
         train=True, output_label=True, label_map_file=label_map_file,
         transform_param=train_transform_param, batch_sampler=batch_sampler)
 
-ALEXNetBody(net, from_layer='data', fully_conv=True, reduced=True, dilated=True,
+ALEXNetBody(net, from_layer='data', fully_conv=True, reduced=REDUCED, dilated=True,
         dropout=False, freeze_layers=freeze_layers)
 
 AddExtraLayers(net, use_batchnorm)
@@ -397,7 +411,7 @@ mbox_layers = CreateMultiBoxHead(net, data_layer='data', from_layers=mbox_source
         use_batchnorm=use_batchnorm, min_sizes=min_sizes, max_sizes=max_sizes,
         aspect_ratios=aspect_ratios, normalizations=normalizations,
         num_classes=num_classes, share_location=share_location, flip=flip, clip=clip,
-        prior_variance=prior_variance, kernel_size=3, pad=1, conf_postfix='_150', loc_postfix='_150')
+        prior_variance=prior_variance, kernel_size=3, pad=1, conf_postfix='_dvia{}'.format(resize_width), loc_postfix='_dvia{}'.format(resize_width))
 
 # Create the MultiBoxLossLayer.
 name = "mbox_loss"
@@ -417,7 +431,7 @@ net.data, net.label = CreateAnnotatedDataLayer(test_data, batch_size=test_batch_
         train=False, output_label=True, label_map_file=label_map_file,
         transform_param=test_transform_param)
 
-ALEXNetBody(net, from_layer='data', fully_conv=True, reduced=True, dilated=True,
+ALEXNetBody(net, from_layer='data', fully_conv=True, reduced=REDUCED, dilated=True,
         dropout=False, freeze_layers=freeze_layers)
 
 AddExtraLayers(net, use_batchnorm)
@@ -426,7 +440,7 @@ mbox_layers = CreateMultiBoxHead(net, data_layer='data', from_layers=mbox_source
         use_batchnorm=use_batchnorm, min_sizes=min_sizes, max_sizes=max_sizes,
         aspect_ratios=aspect_ratios, normalizations=normalizations,
         num_classes=num_classes, share_location=share_location, flip=flip, clip=clip,
-        prior_variance=prior_variance, kernel_size=3, pad=1, conf_postfix='_150', loc_postfix='_150')
+        prior_variance=prior_variance, kernel_size=3, pad=1, conf_postfix='_dvia{}'.format(resize_width), loc_postfix='_dvia{}'.format(resize_width))
 
 conf_name = "mbox_conf"
 if multibox_loss_param["conf_loss_type"] == P.MultiBoxLoss.SOFTMAX:
@@ -489,7 +503,10 @@ for file in os.listdir(snapshot_dir):
     if iter > max_iter:
       max_iter = iter
 
-train_src_param = '--weights="{}" \\\n'.format(pretrain_model)
+if PRETRAINED:
+  train_src_param = '--weights="{}" \\\n'.format(pretrain_model)
+else:
+  train_src_param = ''
 if resume_training:
   if max_iter > 0:
     train_src_param = '--snapshot="{}_iter_{}.solverstate" \\\n'.format(snapshot_prefix, max_iter)
