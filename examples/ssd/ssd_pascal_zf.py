@@ -10,7 +10,7 @@ import stat
 import subprocess
 import sys
 
-PRETRAINED = False
+PRETRAINED = True
 REDUCED = True
 
 # Add extra layers on top of a "base" network (e.g. VGGNet or Inception or ZFNet).
@@ -21,17 +21,11 @@ def AddExtraLayers(net, use_batchnorm=True):
     from_layer = net.keys()[-1]
     # TODO(weiliu89): Construct the name using the last layer to avoid duplication.
     out_layer = "conv6_1"
-    if REDUCED:
-      ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 192, 1, 0, 1)
-    else:
-      ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 256, 1, 0, 1)
+    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 256, 1, 0, 1)
 
     from_layer = out_layer
     out_layer = "conv6_2"
-    if REDUCED:
-      ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 384, 3, 1, 2)
-    else:
-      ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 512, 3, 1, 2)
+    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 384, 3, 1, 2)
 
     for i in xrange(7, 9):
       from_layer = out_layer
@@ -58,7 +52,7 @@ caffe_root = os.getcwd()
 run_soon = True
 # Set true if you want to load from most recently saved snapshot.
 # Otherwise, we will load from the pretrain_model defined below if PRETRAINED is True, else, train from scratch
-resume_training = False
+resume_training = True
 # If true, Remove old model files.
 remove_old_models = False
 
@@ -192,10 +186,11 @@ test_transform_param = {
 use_batchnorm = False
 # Use different initial learning rate.
 if use_batchnorm:
-    base_lr = 0.000005
+    base_lr = 0.00001
 else:
     # A learning rate for batch_size = 1, num_gpus = 1.
-    base_lr = 0.0000005
+    #base_lr = 0.0000005
+    base_lr = 0.00002
 
 # Modify the job name if you want.
 job_name = "SSD_{}".format(resize)
@@ -225,7 +220,8 @@ job_file = "{}/{}.sh".format(job_dir, model_name)
 name_size_file = "data/VOC0712/test_name_size.txt"
 # The pretrained model. ZFNet.
 if PRETRAINED:
-    pretrain_model = "models/ZFNet/ZF.v2.caffemodel"
+    #pretrain_model = "models/ZFNet/ZF.v2.caffemodel"
+    pretrain_model = "models/rZF/Imagenet.1000k.2016Dec15/rzf_imagenet_iter_1040000.caffemodel" # this is rZF model trained on ImageNet
 else:
     pretrain_model = ""
 
@@ -264,15 +260,14 @@ loss_param = {
 # parameters for generating priors.
 # minimum dimension of input image
 min_dim = resize_width
-# conv4   ==> 38 x 38
-# conv5   ==> 19 x 19
-# fc7_conv   ==> 19 x 19
-# conv6_2 ==>  10 x 10
-# conv7_2 ==>  5 x 5
-# conv8_2 ==>  3 x 3
-# pool6   ==>  1 x 1
+# conv4    ==> 35 x 35
+# conv5    ==> 18 x 18
+# fc7_conv ==> 18 x 18
+# conv6_2  ==>  9 x 9
+# conv7_2  ==>  5 x 5
+# conv8_2  ==>  3 x 3
+# pool6    ==>  1 x 1
 mbox_source_layers =  ['conv4', 'fc7_conv', 'conv6_2', 'conv7_2', 'conv8_2', 'pool6']
-#mbox_source_layers = ['conv2', 'conv5', 'conv6_2', 'conv7_2', 'conv8_2', 'pool6']
 # in percent %
 min_ratio = 20
 max_ratio = 95
@@ -286,7 +281,7 @@ min_sizes = [min_dim * 10 / 100.] + min_sizes
 max_sizes = [[]] + max_sizes
 aspect_ratios = [[2], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3]]
 # L2 normalize conv4_3.
-normalizations = [20, -1, -1, -1, -1, -1] ## len(normalizations) must match len(mbox_source_layers)
+normalizations = [-1, -1, -1, -1, -1, -1] ## len(normalizations) must match len(mbox_source_layers)
 # variance used to encode/decode prior bboxes.
 if code_type == P.PriorBox.CENTER_SIZE:
   prior_variance = [0.1, 0.1, 0.2, 0.2]
@@ -344,7 +339,7 @@ solver_param = {
     'stepsize': 1000,
     'momentum': 0.0,
     'iter_size': iter_size,
-    'max_iter': 100000,
+    'max_iter': 400000,
     'snapshot': 20000,
     'display': 50,
     'type': "RMSProp",

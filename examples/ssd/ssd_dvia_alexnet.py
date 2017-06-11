@@ -52,17 +52,19 @@ caffe_root = os.getcwd()
 run_soon = True
 # Set true if you want to load from most recently saved snapshot.
 # Otherwise, we will load from the pretrain_model defined below if PRETRAINED is True, else, train from scratch
-resume_training = False
+resume_training = True
 # If true, Remove old model files.
 remove_old_models = False
 
 # The database file for training data. Created by data/DVIADETDB/create_data.sh
-train_data = "examples/DVIADETDB/DVIADETDB_trainval_lmdb"
+#train_data = "/IMAGESETS/DVIADetDB/DVIAdevkit/DVIADETDB/lmdb/DVIADETDB_trainval_lmdb"
+train_data = "data/DVIADETDB/lmdb/DVIADETDB_trainval_lmdb"
 # The database file for testing data. Created by data/DVIADETDB/create_data.sh
-test_data = "examples/DVIADETDB/DVIADETDB_test_lmdb"
+test_data = "data/DVIADETDB/lmdb/DVIADETDB_test_lmdb"
 # Specify the batch sampler.
-resize_width  = 200
-resize_height = 200
+## KM: Try without resizing -- keeping the aspect ratio of the image intact without warping
+resize_width  = 300
+resize_height = 300
 resize = "{}x{}".format(resize_width, resize_height)
 batch_sampler = [
         {
@@ -326,7 +328,7 @@ else:
   freeze_layers = []
 
 # Evaluate on whole test set.
-num_test_image = 4952
+num_test_image = 371  ## Number of test images the DB (as in test.list and test_name_size.txt)
 test_batch_size = 1
 test_iter = num_test_image / test_batch_size
 
@@ -340,7 +342,7 @@ solver_param = {
     'stepsize': 1000,
     'momentum': 0.0,
     'iter_size': iter_size,
-    'max_iter': 100000,
+    'max_iter': 300000,
     'snapshot': 20000,
     'display': 50,
     'type': "RMSProp",

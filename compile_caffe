@@ -13,15 +13,15 @@ set cdir = `pwd`
 set prefix = '/usr/local/caffe-ssd'
 
 set ver=1.0.0-ssd
-echo "This will install Caffe R-FCN " $ver
+echo "This will install Caffe SSD " $ver
 
 #goto LDCONFIG
-goto BUILD
+#goto BUILD
 #cd build && goto INSTALL || exit (1)
 sudo apt-get -y install --install-recommends libatlas3-base libatlas3-base libatlas-dev libatlas-base-dev 
 sudo apt-get -y install libboost-dev libboost-filesystem-dev 
 # Caffe SSD needs boost_regex
-sudo aptitude install libboost-regex1.54-dev
+sudo aptitude install libboost-regex-dev
 sudo apt-get -y install --install-recommends libprotobuf-dev protobuf-compiler python-protobuf 
 sudo apt-get -y install --install-recommends libgoogle-glog-dev libgflags-dev libhdf5-dev liblmdb-dev liblmdb0 lmdb-doc 
 sudo apt-get -y install --install-recommends snappy libsnappy-dev libleveldb-dev python-leveldb
@@ -41,16 +41,16 @@ chkst
 make -j8 test
 chkst
 #make runtest
-chkst
+#chkst
 
 INSTALL:
-sudo make install
-##--sudo checkinstall --nodoc --strip=yes --backup=no \
-##--        --default \
-##--        --pkgname=caffe-frcnn \
-##--        --pkgversion=${ver} \
-##--        --requires=libatlas3-base,libatlas3-base,libatlas-dev,libatlas-base-dev,libboost-dev,libboost-filesystem-dev,libprotobuf-dev,protobuf-compiler,python-protobuf,libgoogle-glog-dev,libgflags-dev,libhdf5-dev,liblmdb-dev,liblmdb0,lmdb-doc,snappy,libsnappy-dev,libleveldb-dev,python-leveldb
-##--
+##--sudo make install
+sudo checkinstall --nodoc --strip=yes --backup=no \
+        --default \
+        --pkgname=caffe-ssd \
+        --pkgversion=${ver} \
+        --requires=libatlas3-base,libatlas3-base,libatlas-dev,libatlas-base-dev,libboost-dev,libboost-filesystem-dev,libprotobuf-dev,protobuf-compiler,python-protobuf,libgoogle-glog-dev,libgflags-dev,libhdf5-dev,liblmdb-dev,liblmdb0,lmdb-doc,snappy,libsnappy-dev,libleveldb-dev,python-leveldb
+
 chkst
 
 
@@ -58,4 +58,4 @@ LDCONFIG:
 ##--set ldstr = ( echo "${prefix}/lib" )
 ##--sudo sh -c "$ldstr > /etc/ld.so.conf.d/caffe-fast-rcnn.conf"
 ##--sudo ldconfig
-echo "Caffe" $ver "ready to be used"
+echo "Caffe-ssd" $ver "ready to be used"

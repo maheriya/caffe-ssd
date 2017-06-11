@@ -300,6 +300,14 @@ def rZFNetBody(net, from_layer, need_fc=True, fully_conv=False, reduced=False,
             'param': [dict(lr_mult=1, decay_mult=1), dict(lr_mult=2, decay_mult=0)],
             'weight_filler': dict(type='xavier'),
             'bias_filler': dict(type='constant', value=0)}
+    kwargs_slow = {
+            'param': [dict(lr_mult=0.5, decay_mult=0.5), dict(lr_mult=1.0, decay_mult=0)],
+            'weight_filler': dict(type='xavier'),
+            'bias_filler': dict(type='constant', value=0)}
+    kwargs_frozen = {
+            'param': [dict(lr_mult=0, decay_mult=0), dict(lr_mult=0, decay_mult=0)],
+            'weight_filler': dict(type='xavier'),
+            'bias_filler': dict(type='constant', value=0)}
     lrn_params = {'lrn_param': {'local_size': 3,
                                 'alpha': 0.00005,
                                 'beta': 0.75,
@@ -308,35 +316,37 @@ def rZFNetBody(net, from_layer, need_fc=True, fully_conv=False, reduced=False,
 
     assert from_layer in net.keys()
     # Version R3
-    net.conv1 = L.Convolution(net[from_layer], num_output=96, pad=3, kernel_size=7, stride=4, **kwargs)
+    net.conv1 = L.Convolution(net[from_layer], num_output=96,  pad=0, stride=4, kernel_size=7,             **kwargs_frozen)
     net.relu1 = L.ReLU(net.conv1, in_place=True)
     net.norm1 = L.LRN(net.relu1, **lrn_params)
 
-    net.conv2 = L.Convolution(net.norm1, num_output=192, pad=1, kernel_size=3, stride=2, **kwargs)
+    net.conv2 = L.Convolution(net.norm1,       num_output=224, pad=0, stride=2, kernel_size=5,             **kwargs_frozen)
     net.relu2 = L.ReLU(net.conv2, in_place=True)
     net.norm2 = L.LRN(net.relu2, **lrn_params)
 
-    net.conv3 = L.Convolution(net.norm2, num_output=192, pad=3, kernel_size=3, stride=1, dilation=3, **kwargs)
+    net.conv3 = L.Convolution(net.norm2,       num_output=224, pad=3, stride=1, kernel_size=3, dilation=3, **kwargs_slow)
     net.relu3 = L.ReLU(net.conv3, in_place=True)
 
-    net.conv4 = L.Convolution(net.relu3, num_output=192, pad=4, kernel_size=3, stride=1, dilation=4, **kwargs)
+    net.conv4 = L.Convolution(net.relu3,       num_output=192, pad=4, stride=1, kernel_size=3, dilation=4, **kwargs_slow)
     net.relu4 = L.ReLU(net.conv4, in_place=True)
 
-    net.conv5 = L.Convolution(net.relu4, num_output=192, pad=1, kernel_size=3, stride=2, **kwargs)
+    net.conv5 = L.Convolution(net.relu4,       num_output=384, pad=1, stride=2, kernel_size=3,             **kwargs_slow)
     net.relu5 = L.ReLU(net.conv5, in_place=True)
 
-    net.fc6_conv = L.Convolution(net.relu5, num_output=384, pad=5, kernel_size=3, dilation=5, **kwargs)
+    net.fc6_conv = L.Convolution(net.relu5,    num_output=384, pad=6, stride=1, kernel_size=3, dilation=6, **kwargs)
     net.relu6 = L.ReLU(net.fc6_conv, in_place=True)
 
-    net.fc7_conv = L.Convolution(net.relu6, num_output=384, pad=0, kernel_size=1, **kwargs)
+    net.fc7_conv = L.Convolution(net.relu6,    num_output=384, pad=0, stride=1, kernel_size=1,             **kwargs)
     net.relu7 = L.ReLU(net.fc7_conv, in_place=True)
 
     # Update freeze layers.
-    kwargs['param'] = [dict(lr_mult=0, decay_mult=0), dict(lr_mult=0, decay_mult=0)]
+    kwargs_freeze = kwargs;
+    kwargs_freeze['param'] = [dict(lr_mult=0,   decay_mult=0),   dict(lr_mult=0,   decay_mult=0)]
     layers = net.keys()
     for freeze_layer in freeze_layers:
         if freeze_layer in layers:
-            net.update(freeze_layer, kwargs)
+            net.update(freeze_layer, kwargs_freeze)
+
 
     return net
 
