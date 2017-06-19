@@ -1,0 +1,3 @@
+#!/bin/csh -f
+
+python examples/ssd/ssd_dvia_alexnet.py | & tee training_ssd_dvia_alexnet.log

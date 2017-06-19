@@ -1,0 +1,10 @@
+#!/bin/csh -f
+
+# Train from scratch
+#caffe train --solver=models/rZF/solver.prototxt |& tee rzf_imagenet.log
+
+## Resume training
+caffe train --solver=models/rZF/solver.prototxt --snapshot=models/rZF/Imagenet/rzf_imagenet_iter_560000.solverstate |& tee rzf_imagenet.log
+
+## Restart training using pretrained model's weights
+#caffe train --solver=models/rZF/solver.prototxt --weights=models/rZF/Imagenet.500k.2016Dec05/rzf_imagenet_iter_500000.caffemodel |& tee rzf_imagenet.log

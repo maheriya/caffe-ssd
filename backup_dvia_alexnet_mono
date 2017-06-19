@@ -1,0 +1,36 @@
+#!/bin/csh -f
+
+# Back up results of training
+set backup_str = `date | awk '{print $6$2$3}'`
+set cdir = `pwd`
+
+if ($#argv != 2) then
+  set sh = 300
+  set sw = 300
+else
+  set sh = $argv[1]
+  set sw = $argv[2]
+endif
+
+@ count = `/bin/ls models/ALEXNet/DVIADETDB | grep "SSD_${sw}x${sh}.$backup_str" | grep -c 'mono'`
+if ( $count == 0 ) then
+  set backup_str = ${backup_str}."mono1"
+else
+  @ str =  `/bin/ls models/ALEXNet/DVIADETDB | grep "SSD_${sw}x${sh}.$backup_str" | grep 'mono' | sed 's#.*mono##'` + 1
+  set backup_str = ${backup_str}."mono$str"
+endif
+
+echo "Backing up results for ALEXNet - DVIADETDB into $backup_str suffix into models, jobs and results directories"
+
+foreach dir ( $cdir/models/ALEXNet/DVIADETDB $cdir/jobs/ALEXNet/DVIADETDB /IMAGESETS/DVIADetDB/DVIAdevkit/results_ssd_alexnet/DVIADETDB )
+  if ( -d "$dir/SSD_${sw}x${sh}" ) then
+    set bkdir = "$dir/SSD_${sw}x${sh}.$backup_str"
+    echo "Backing up to $bkdir"
+    mkdir $bkdir
+    cd $bkdir
+    tar cf - -C $dir/SSD_${sw}x${sh} . | tar xf -
+    cd -
+  else
+    echo "$dir/SSD_${sw}x${sh} not found"
+  endif
+end
