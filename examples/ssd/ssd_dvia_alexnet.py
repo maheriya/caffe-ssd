@@ -1,3 +1,8 @@
+'''
+Before running this script, you should download the fully convolutional reduced (atrous) ZFNet at:
+  http://cs.unc.edu/~wliu/projects/SSD/ZF_conv_reduced.caffemodel
+By default, we assume the model is stored in `$CAFFE_ROOT/models/ZFNet/`
+'''
 from __future__ import print_function
 import caffe
 from caffe.model_libs import *
@@ -12,34 +17,57 @@ import sys
 
 PRETRAINED = True
 REDUCED = True
-GRAYSCALE = True
+GRAYSCALE = False
 
 # Add extra layers on top of a "base" network (e.g. VGGNet or Inception or ZFNet).
-def AddExtraLayers(net, use_batchnorm=True):
+def AddExtraLayers(net, use_batchnorm=True, lr_mult=1):
     use_relu = True
 
     # Add additional convolutional layers.
+    # 18 x 18
     from_layer = net.keys()[-1]
-    # TODO(weiliu89): Construct the name using the last layer to avoid duplication.
     out_layer = "conv6_1"
-    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 256, 1, 0, 1)
+    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 256, 1, 0, 1,
+        lr_mult=lr_mult)
 
+    # 9 x 9
     from_layer = out_layer
     out_layer = "conv6_2"
-    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 384, 3, 1, 2)
+    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 512, 3, 1, 2,
+        lr_mult=lr_mult)
 
-    for i in xrange(7, 9):
-      from_layer = out_layer
-      out_layer = "conv{}_1".format(i)
-      ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 128, 1, 0, 1)
+    from_layer = out_layer
+    out_layer = "conv7_1"
+    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 128, 1, 0, 1,
+      lr_mult=lr_mult)
 
-      from_layer = out_layer
-      out_layer = "conv{}_2".format(i)
-      ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 256, 3, 1, 2)
+    # 5 x 5
+    from_layer = out_layer
+    out_layer = "conv7_2"
+    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 256, 3, 1, 2,
+      lr_mult=lr_mult)
 
-    # Add global pooling layer.
-    name = net.keys()[-1]
-    net.pool6 = L.Pooling(net[name], pool=P.Pooling.AVE, global_pooling=True)
+    from_layer = out_layer
+    out_layer = "conv8_1"
+    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 128, 1, 0, 1,
+      lr_mult=lr_mult)
+
+    # 3 x 3
+    from_layer = out_layer
+    out_layer = "conv8_2"
+    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 256, 3, 0, 1,
+      lr_mult=lr_mult)
+
+    from_layer = out_layer
+    out_layer = "conv9_1"
+    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 128, 1, 0, 1,
+      lr_mult=lr_mult)
+
+    # 1 x 1
+    from_layer = out_layer
+    out_layer = "conv9_2"
+    ConvBNLayer(net, from_layer, out_layer, use_batchnorm, use_relu, 256, 3, 0, 1,
+      lr_mult=lr_mult)
 
     return net
 
@@ -63,7 +91,7 @@ train_data = "data/DVIADETDB/lmdb/DVIADETDB_trainval_lmdb"
 # The database file for testing data. Created by data/DVIADETDB/create_data.sh
 test_data = "data/DVIADETDB/lmdb/DVIADETDB_test_lmdb"
 # Specify the batch sampler.
-## KM: Try without resizing -- keeping the aspect ratio of the image intact without warping
+## KM: TODO: Try without resizing -- keeping the aspect ratio of the image intact without warping
 resize_width  = 300
 resize_height = 300
 resize = "{}x{}".format(resize_width, resize_height)
@@ -174,6 +202,23 @@ train_transform_param = {
                         P.Resize.LANCZOS4,
                         ],
                 },
+        'distort_param': {
+                'brightness_prob': 0.5,
+                'brightness_delta': 32,
+                'contrast_prob': 0.5,
+                'contrast_lower': 0.5,
+                'contrast_upper': 1.5,
+                'hue_prob': 0.5,
+                'hue_delta': 18,
+                'saturation_prob': 0.5,
+                'saturation_lower': 0.5,
+                'saturation_upper': 1.5,
+                'random_order_prob': 0.0,
+                },
+        'expand_param': {
+                'prob': 0.5,
+                'max_expand_ratio': 4.0,
+                },
         'emit_constraint': {
             'emit_type': caffe_pb2.EmitConstraint.CENTER,
             }
@@ -192,12 +237,13 @@ test_transform_param = {
 # If true, use batch norm for all newly added layers.
 # Currently only the non batch norm version has been tested.
 use_batchnorm = False
+lr_mult = 1
 # Use different initial learning rate.
 if use_batchnorm:
-    base_lr = 0.00001
+    base_lr = 0.0004
 else:
     # A learning rate for batch_size = 1, num_gpus = 1.
-    base_lr = 0.000001
+    base_lr = 0.00004
 
 # Modify the job name if you want.
 job_name = "SSD_{}".format(resize)
@@ -242,6 +288,8 @@ background_label_id=0
 train_on_diff_gt = True
 normalization_mode = P.Loss.VALID
 code_type = P.PriorBox.CENTER_SIZE
+ignore_cross_boundary_bbox = False
+mining_type = P.MultiBoxLoss.MAX_NEGATIVE
 neg_pos_ratio = 3.
 loc_weight = (neg_pos_ratio + 1.) / 4.
 multibox_loss_param = {
@@ -255,10 +303,11 @@ multibox_loss_param = {
     'use_prior_for_matching': True,
     'background_label_id': background_label_id,
     'use_difficult_gt': train_on_diff_gt,
-    'do_neg_mining': True,
+    'mining_type': mining_type,
     'neg_pos_ratio': neg_pos_ratio,
     'neg_overlap': 0.5,
     'code_type': code_type,
+    'ignore_cross_boundary_bbox': ignore_cross_boundary_bbox,
     }
 loss_param = {
     'normalization': normalization_mode,
@@ -267,19 +316,17 @@ loss_param = {
 # parameters for generating priors.
 # minimum dimension of input image
 min_dim = resize_width
-# For 200x200
-# conv2     ==> 24 x 24
-# conv3/4/5 ==> 12 x 12
-# fc7_conv  ==> 12 x 12
-# conv6_2   ==>  6 x  6
-# conv7_2   ==>  3 x  3
-# conv8_2   ==>  2 x  2
-# pool6     ==>  1 x  1
-#mbox_source_layers = ['conv5', 'fc7_conv', 'conv6_2', 'conv7_2', 'conv8_2']
-mbox_source_layers = ['conv2', 'fc7_conv', 'conv6_2', 'conv7_2', 'conv8_2', 'pool6']
+# ALEXNet
+# conv2   ==> 37 x 37
+# fc7     ==> 18 x 18
+# conv6_2 ==>  9 x 9
+# conv7_2 ==>  5 x 5
+# conv8_2 ==>  3 x 3
+# conv9_2 ==> 1 x 1
+mbox_source_layers = ['conv2', 'fc7', 'conv6_2', 'conv7_2', 'conv8_2', 'conv9_2']
 # in percent %
 min_ratio = 20
-max_ratio = 95
+max_ratio = 90
 step = int(math.floor((max_ratio - min_ratio) / (len(mbox_source_layers) - 2)))
 min_sizes = []
 max_sizes = []
@@ -287,17 +334,18 @@ for ratio in xrange(min_ratio, max_ratio + 1, step):
   min_sizes.append(min_dim * ratio / 100.)
   max_sizes.append(min_dim * (ratio + step) / 100.)
 min_sizes = [min_dim * 10 / 100.] + min_sizes
-max_sizes = [[]] + max_sizes
-aspect_ratios = [[2], [2, 3], [2, 3], [2, 3], [2, 3], [2, 3]]
-# L2 normalize conv4_3.
-normalizations = [-1, -1, -1, -1, -1, -1] ## len(normalizations) must match len(mbox_source_layers)
+max_sizes = [min_dim * 20 / 100.] + max_sizes
+steps = [8, 16, 32, 64, 100, 300]
+aspect_ratios = [[2], [2, 3], [2, 3], [2, 3], [2], [2]]
+# L2 normalize conv2.
+normalizations = [20, -1, -1, -1, -1, -1]
 # variance used to encode/decode prior bboxes.
 if code_type == P.PriorBox.CENTER_SIZE:
   prior_variance = [0.1, 0.1, 0.2, 0.2]
 else:
   prior_variance = [0.1]
 flip = True
-clip = True
+clip = False
 
 # Solver parameters.
 # Defining which GPUs to use.
@@ -338,24 +386,25 @@ else:
 
 # Evaluate on whole test set.
 num_test_image = 371  ## Number of test images the DB (as in test.list and test_name_size.txt)
-test_batch_size = 1
-test_iter = num_test_image / test_batch_size
+test_batch_size = 8
+# Ideally test_batch_size should be divisible by num_test_image,
+# otherwise mAP will be slightly off the true value.
+test_iter = int(math.ceil(float(num_test_image) / test_batch_size))
 
 solver_param = {
     # Train parameters
     'base_lr': base_lr,
-    'weight_decay': 0.001,
-    'lr_policy': "inv",
-    'gamma': 0.0001,
-    'power': 0.75,
-    'stepsize': 1000,
-    'momentum': 0.0,
+    'weight_decay': 0.0005,
+    'lr_policy': "multistep",
+    'stepvalue': [80000, 100000, 120000, 200000],
+    'gamma': 0.1,
+    'momentum': 0.9,
     'iter_size': iter_size,
     'max_iter': 300000,
-    'snapshot': 20000,
-    'display': 100,
-    'type': "RMSProp",
-    'rms_decay': 0.98,
+    'snapshot': 50000,
+    'display': 10,
+    'average_loss': 10,
+    'type': "SGD",
     'solver_mode': solver_mode,
     'device_id': device_id,
     'debug_info': False,
@@ -416,13 +465,13 @@ net.data, net.label = CreateAnnotatedDataLayer(train_data, batch_size=batch_size
 ALEXNetBody(net, from_layer='data', fully_conv=True, reduced=REDUCED, dilated=True,
         dropout=False, freeze_layers=freeze_layers, grayscale=GRAYSCALE)
 
-AddExtraLayers(net, use_batchnorm)
+AddExtraLayers(net, use_batchnorm, lr_mult=lr_mult)
 
 mbox_layers = CreateMultiBoxHead(net, data_layer='data', from_layers=mbox_source_layers,
         use_batchnorm=use_batchnorm, min_sizes=min_sizes, max_sizes=max_sizes,
-        aspect_ratios=aspect_ratios, normalizations=normalizations,
+        aspect_ratios=aspect_ratios, steps=steps, normalizations=normalizations,
         num_classes=num_classes, share_location=share_location, flip=flip, clip=clip,
-        prior_variance=prior_variance, kernel_size=3, pad=1, conf_postfix='_dvia{}'.format(resize_width), loc_postfix='_dvia{}'.format(resize_width))
+        prior_variance=prior_variance, kernel_size=3, pad=1, conf_postfix='', loc_postfix='', lr_mult=lr_mult)
 
 # Create the MultiBoxLossLayer.
 name = "mbox_loss"
@@ -445,13 +494,13 @@ net.data, net.label = CreateAnnotatedDataLayer(test_data, batch_size=test_batch_
 ALEXNetBody(net, from_layer='data', fully_conv=True, reduced=REDUCED, dilated=True,
         dropout=False, freeze_layers=freeze_layers, grayscale=GRAYSCALE)
 
-AddExtraLayers(net, use_batchnorm)
+AddExtraLayers(net, use_batchnorm, lr_mult=lr_mult)
 
 mbox_layers = CreateMultiBoxHead(net, data_layer='data', from_layers=mbox_source_layers,
         use_batchnorm=use_batchnorm, min_sizes=min_sizes, max_sizes=max_sizes,
-        aspect_ratios=aspect_ratios, normalizations=normalizations,
+        aspect_ratios=aspect_ratios, steps=steps, normalizations=normalizations,
         num_classes=num_classes, share_location=share_location, flip=flip, clip=clip,
-        prior_variance=prior_variance, kernel_size=3, pad=1, conf_postfix='_dvia{}'.format(resize_width), loc_postfix='_dvia{}'.format(resize_width))
+        prior_variance=prior_variance, kernel_size=3, pad=1, conf_postfix='', loc_postfix='', lr_mult=lr_mult)
 
 conf_name = "mbox_conf"
 if multibox_loss_param["conf_loss_type"] == P.MultiBoxLoss.SOFTMAX:

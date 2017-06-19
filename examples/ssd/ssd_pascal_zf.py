@@ -388,7 +388,7 @@ solver_param = {
     'base_lr': base_lr,
     'weight_decay': 0.0005,
     'lr_policy': "multistep",
-    'stepvalue': [80000, 100000, 120000],
+    'stepvalue': [80000, 100000, 120000, 200000],
     'gamma': 0.1,
     'momentum': 0.9,
     'iter_size': iter_size,
@@ -463,7 +463,7 @@ mbox_layers = CreateMultiBoxHead(net, data_layer='data', from_layers=mbox_source
         use_batchnorm=use_batchnorm, min_sizes=min_sizes, max_sizes=max_sizes,
         aspect_ratios=aspect_ratios, steps=steps, normalizations=normalizations,
         num_classes=num_classes, share_location=share_location, flip=flip, clip=clip,
-        prior_variance=prior_variance, kernel_size=3, pad=1, conf_postfix='_{}'.format(resize_width), loc_postfix='_{}'.format(resize_width), lr_mult=lr_mult)
+        prior_variance=prior_variance, kernel_size=3, pad=1, conf_postfix='', loc_postfix='', lr_mult=lr_mult)
 
 # Create the MultiBoxLossLayer.
 name = "mbox_loss"
@@ -492,7 +492,7 @@ mbox_layers = CreateMultiBoxHead(net, data_layer='data', from_layers=mbox_source
         use_batchnorm=use_batchnorm, min_sizes=min_sizes, max_sizes=max_sizes,
         aspect_ratios=aspect_ratios, steps=steps, normalizations=normalizations,
         num_classes=num_classes, share_location=share_location, flip=flip, clip=clip,
-        prior_variance=prior_variance, kernel_size=3, pad=1, conf_postfix='_{}'.format(resize_width), loc_postfix='_{}'.format(resize_width), lr_mult=lr_mult)
+        prior_variance=prior_variance, kernel_size=3, pad=1, conf_postfix='', loc_postfix='', lr_mult=lr_mult)
 
 conf_name = "mbox_conf"
 if multibox_loss_param["conf_loss_type"] == P.MultiBoxLoss.SOFTMAX:
