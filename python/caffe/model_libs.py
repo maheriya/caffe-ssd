@@ -193,7 +193,7 @@ def CreateAnnotatedDataLayer(source, batch_size=32, backend=P.Data.LMDB,
 
 # ALEXNet (actually, CaffeNet, a slightly modified AlexNet) network
 def ALEXNetBody(net, from_layer, need_fc=True, fully_conv=False, reduced=False,
-        dilated=False, nopool=False, dropout=True, freeze_layers=[]):
+        dilated=False, nopool=False, dropout=True, freeze_layers=[], grayscale=False):
     kwargs = {
             'param': [dict(lr_mult=1, decay_mult=1), dict(lr_mult=2, decay_mult=0)],
             'weight_filler': dict(type='xavier'),
@@ -206,8 +206,14 @@ def ALEXNetBody(net, from_layer, need_fc=True, fully_conv=False, reduced=False,
 
     assert from_layer in net.keys()
     # Version R2
-    net.conv1 = L.Convolution(net[from_layer], num_output=96, pad=3, kernel_size=11, stride=4, **kwargs)
-    net.relu1 = L.ReLU(net.conv1, in_place=True)
+    if grayscale:
+        # The reason for chaning the layer name is to make sure the pretrained parameters from another model
+        # (which will usually be trained with RGB images) can be loaded without error (with this layer excluded)
+        net.conv1_gray = L.Convolution(net[from_layer], num_output=96, pad=3, kernel_size=11, stride=4, **kwargs)
+        net.relu1 = L.ReLU(net.conv1_gray, in_place=True)
+    else:
+        net.conv1 = L.Convolution(net[from_layer], num_output=96, pad=3, kernel_size=11, stride=4, **kwargs)
+        net.relu1 = L.ReLU(net.conv1, in_place=True)
     if nopool:
         name = 'conv1_p'
         net[name] = L.Convolution(net.relu1, num_output=96, pad=1, kernel_size=3, stride=2, **kwargs)

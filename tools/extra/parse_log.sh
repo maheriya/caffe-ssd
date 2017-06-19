@@ -14,6 +14,12 @@ echo "Usage parse_log.sh /path/to/your.log"
 exit
 fi
 LOG=`basename $1`
+## I0612 16:28:38.198149 13666 solver.cpp:421] Iteration 20000, Testing net (#0)
+## I0612 16:28:40.635100 13666 solver.cpp:531]     Test net output #0: detection_eval = 0.542956
+## I0612 16:28:40.752912 13666 solver.cpp:231] Iteration 20000, loss = 2.76248
+## I0612 16:28:40.752956 13666 solver.cpp:247]     Train net output #0: mbox_loss = 2.76248 (* 1 = 2.76248 loss)
+## I0612 16:28:40.752964 13666 sgd_solver.cpp:106] Iteration 20000, lr = 1.09673e-05
+
 sed -n '/Iteration .* Testing net/,/Iteration *. loss/p' $1 > aux.txt
 sed -i '/Waiting for data/d' aux.txt
 sed -i '/prefetch queue empty/d' aux.txt

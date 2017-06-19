@@ -12,6 +12,7 @@ import sys
 
 PRETRAINED = True
 REDUCED = True
+GRAYSCALE = True
 
 # Add extra layers on top of a "base" network (e.g. VGGNet or Inception or ZFNet).
 def AddExtraLayers(net, use_batchnorm=True):
@@ -52,7 +53,7 @@ caffe_root = os.getcwd()
 run_soon = True
 # Set true if you want to load from most recently saved snapshot.
 # Otherwise, we will load from the pretrain_model defined below if PRETRAINED is True, else, train from scratch
-resume_training = True
+resume_training = False
 # If true, Remove old model files.
 remove_old_models = False
 
@@ -152,9 +153,14 @@ batch_sampler = [
                 'max_sample': 1,
         },
         ]
+if GRAYSCALE:
+  mean_value = 104
+else:
+  mean_value = [104, 117, 123]
+
 train_transform_param = {
         'mirror': True,
-        'mean_value': [104, 117, 123],
+        'mean_value': mean_value,
         'resize_param': {
                 'prob': 1,
                 'resize_mode': P.Resize.WARP,
@@ -173,7 +179,7 @@ train_transform_param = {
             }
         }
 test_transform_param = {
-        'mean_value': [104, 117, 123],
+        'mean_value': mean_value,
         'resize_param': {
                 'prob': 1,
                 'resize_mode': P.Resize.WARP,
@@ -323,7 +329,10 @@ elif normalization_mode == P.Loss.FULL:
 
 # Which layers to freeze (no backward) during training.
 if PRETRAINED:
-  freeze_layers = ['conv1', 'conv2']
+  if GRAYSCALE:
+    freeze_layers = [] # For grayscale, let all layers train since conv1_gray is not pretrained (for now)
+  else:
+    freeze_layers = ['conv1', 'conv2']
 else:
   freeze_layers = []
 
@@ -344,7 +353,7 @@ solver_param = {
     'iter_size': iter_size,
     'max_iter': 300000,
     'snapshot': 20000,
-    'display': 50,
+    'display': 100,
     'type': "RMSProp",
     'rms_decay': 0.98,
     'solver_mode': solver_mode,
@@ -405,7 +414,7 @@ net.data, net.label = CreateAnnotatedDataLayer(train_data, batch_size=batch_size
         transform_param=train_transform_param, batch_sampler=batch_sampler)
 
 ALEXNetBody(net, from_layer='data', fully_conv=True, reduced=REDUCED, dilated=True,
-        dropout=False, freeze_layers=freeze_layers)
+        dropout=False, freeze_layers=freeze_layers, grayscale=GRAYSCALE)
 
 AddExtraLayers(net, use_batchnorm)
 
@@ -434,7 +443,7 @@ net.data, net.label = CreateAnnotatedDataLayer(test_data, batch_size=test_batch_
         transform_param=test_transform_param)
 
 ALEXNetBody(net, from_layer='data', fully_conv=True, reduced=REDUCED, dilated=True,
-        dropout=False, freeze_layers=freeze_layers)
+        dropout=False, freeze_layers=freeze_layers, grayscale=GRAYSCALE)
 
 AddExtraLayers(net, use_batchnorm)
 
