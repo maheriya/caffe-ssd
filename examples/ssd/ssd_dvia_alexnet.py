@@ -17,7 +17,7 @@ import sys
 
 PRETRAINED = True
 REDUCED = True
-GRAYSCALE = False
+GRAYSCALE = True
 
 # Add extra layers on top of a "base" network (e.g. VGGNet or Inception or ZFNet).
 def AddExtraLayers(net, use_batchnorm=True, lr_mult=1):
@@ -186,6 +186,12 @@ if GRAYSCALE:
 else:
   mean_value = [104, 117, 123]
 
+if GRAYSCALE:
+    hue_prob = 0
+    sat_prob = 0
+else:
+    hue_prob = 0.5
+    sat_prob = 0.5
 train_transform_param = {
         'mirror': True,
         'mean_value': mean_value,
@@ -208,9 +214,9 @@ train_transform_param = {
                 'contrast_prob': 0.5,
                 'contrast_lower': 0.5,
                 'contrast_upper': 1.5,
-                'hue_prob': 0.5,
+                'hue_prob': hue_prob,
                 'hue_delta': 18,
-                'saturation_prob': 0.5,
+                'saturation_prob': sat_prob,
                 'saturation_lower': 0.5,
                 'saturation_upper': 1.5,
                 'random_order_prob': 0.0,
@@ -323,7 +329,7 @@ min_dim = resize_width
 # conv7_2 ==>  5 x 5
 # conv8_2 ==>  3 x 3
 # conv9_2 ==> 1 x 1
-mbox_source_layers = ['conv2', 'fc7', 'conv6_2', 'conv7_2', 'conv8_2', 'conv9_2']
+mbox_source_layers = ['conv2', 'fc7_conv', 'conv6_2', 'conv7_2', 'conv8_2', 'conv9_2']
 # in percent %
 min_ratio = 20
 max_ratio = 90
@@ -402,7 +408,7 @@ solver_param = {
     'iter_size': iter_size,
     'max_iter': 300000,
     'snapshot': 50000,
-    'display': 10,
+    'display': 100,
     'average_loss': 10,
     'type': "SGD",
     'solver_mode': solver_mode,
