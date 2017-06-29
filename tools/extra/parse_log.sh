@@ -20,7 +20,8 @@ LOG=`basename $1`
 ## I0612 16:28:40.752956 13666 solver.cpp:247]     Train net output #0: mbox_loss = 2.76248 (* 1 = 2.76248 loss)
 ## I0612 16:28:40.752964 13666 sgd_solver.cpp:106] Iteration 20000, lr = 1.09673e-05
 
-sed -n '/Iteration .* Testing net/,/Iteration *. loss/p' $1 > aux.txt
+## For Test: find iters (aux0.txt) and test accuracy (aux1.txt, aux2.txt) ## and seconds (aux4)
+sed -n '/Iteration .* Testing net/,/Iteration [0-9][0-9]*, loss/p' $1 > aux.txt
 sed -i '/Waiting for data/d' aux.txt
 sed -i '/prefetch queue empty/d' aux.txt
 sed -i '/Iteration .* loss/d' aux.txt
@@ -29,8 +30,7 @@ sed -i '/Train net/d' aux.txt
 grep 'Iteration ' aux.txt | sed  's/.*Iteration \([[:digit:]]*\).*/\1/g' > aux0.txt
 grep 'Test net output #0' aux.txt | awk '{print $11}' > aux1.txt
 grep 'Test net output #1' aux.txt | awk '{print $11}' > aux2.txt
-
-# Extracting elapsed seconds
+## Extracting elapsed seconds
 # For extraction of time since this line contains the start time
 grep '] Solving ' $1 > aux3.txt
 grep 'Testing net' $1 >> aux3.txt

@@ -89,6 +89,7 @@ def load_data(data_file, field_idx0, field_idx1):
     with open(data_file, 'r') as f:
         for line in f:
             line = line.strip()
+            #print "line: {}".format(line)
             if line[0] != '#':
                 fields = line.split()
                 data[0].append(float(fields[field_idx0].strip()))
@@ -127,8 +128,8 @@ def plot_chart(chart_type, path_to_png, path_to_log_list):
         label = get_data_label(path_to_log)
         linewidth = 0.75
         ## If there too many datapoints, do not use marker.
-##        use_marker = False
-        use_marker = True
+        use_marker = False
+##        use_marker = True
         if not use_marker:
             plt.plot(data[0], data[1], label = label, color = color,
                      linewidth = linewidth)

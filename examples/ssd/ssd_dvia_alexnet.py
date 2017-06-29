@@ -17,7 +17,7 @@ import sys
 
 PRETRAINED = True
 REDUCED = True
-GRAYSCALE = True
+GRAYSCALE = False
 
 # Add extra layers on top of a "base" network (e.g. VGGNet or Inception or ZFNet).
 def AddExtraLayers(net, use_batchnorm=True, lr_mult=1):
@@ -402,15 +402,16 @@ solver_param = {
     'base_lr': base_lr,
     'weight_decay': 0.0005,
     'lr_policy': "multistep",
-    'stepvalue': [80000, 100000, 120000, 200000],
+    'stepvalue': [60000, 110000, 190000],
     'gamma': 0.1,
-    'momentum': 0.9,
+    #'momentum': 0.9,
     'iter_size': iter_size,
     'max_iter': 300000,
     'snapshot': 50000,
     'display': 100,
     'average_loss': 10,
-    'type': "SGD",
+    'type': "RMSProp",
+    'rms_decay': 0.98,
     'solver_mode': solver_mode,
     'device_id': device_id,
     'debug_info': False,
