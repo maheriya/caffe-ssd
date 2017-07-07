@@ -1,0 +1,69 @@
+#!/bin/csh -f
+
+
+set USE_OPENCV3 = 0
+
+## SSD Caffe needs GCC 5
+setenv CC gcc-5
+setenv CXX g++-5
+setenv PYTHONPATH $cwd/python
+
+alias chkst 'if ($status != 0) then \
+  echo "Failure!"; \
+  exit(1); \
+endif'
+
+set cdir = `pwd`
+if ($USE_OPENCV3) then
+  source ~/setup/setup_opencv3.csh
+  set cv = "3"
+else
+  set cv = "2"
+endif
+set pkgname = "caffe-ssd-opencv$cv"
+set prefix = "/usr/local/$pkgname"
+
+set ver = "1.0.0-ssd-cv$cv"
+echo "This will install Caffe SSD " $ver $pkgname
+
+#goto LDCONFIG
+#goto BUILD
+#cd build && goto INSTALL || exit (1)
+# Caffe SSD needs boost_regex
+sudo apt-get install libboost-regex-dev
+chkst
+
+BUILD:
+cd $cdir
+if (! -d build) mkdir build
+cd build
+#goto MAKE
+cmake -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_INSTALL_PREFIX=$prefix ..
+
+MAKE:
+make -j8
+chkst
+make pycaffe
+chkst
+make -j8 test
+chkst
+make runtest
+chkst
+
+INSTALL:
+##--sudo make install
+sudo checkinstall --nodoc --strip=yes --backup=no \
+        --fstrans=no \
+        --default \
+        --pkgname=$pkgname \
+        --pkgversion=${ver} \
+        --requires=libatlas3-base,libatlas3-base,libatlas-dev,libatlas-base-dev,libboost-dev,libboost-filesystem-dev,libprotobuf-dev,protobuf-compiler,python-protobuf,libgoogle-glog-dev,libgflags-dev,libhdf5-dev,liblmdb-dev,liblmdb0,lmdb-doc,libsnappy-dev,libleveldb-dev,python-leveldb
+
+chkst
+
+
+LDCONFIG:
+##--set ldstr = ( echo "${prefix}/lib" )
+##--sudo sh -c "$ldstr > /etc/ld.so.conf.d/caffe-fast-rcnn.conf"
+##--sudo ldconfig
+echo "Caffe-ssd" $ver $pkgname "ready to be used"
