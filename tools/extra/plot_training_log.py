@@ -131,7 +131,11 @@ def plot_chart(chart_type, path_to_png, path_to_log_list):
         use_marker = False
 ##        use_marker = True
         if not use_marker:
-            plt.plot(data[0], data[1], label = label, color = color,
+            if chart_type==4: ## learning rate vs iters; plot log y axis
+                plt.semilogy(data[0], data[1], label = label, color = color,
+                     linewidth = linewidth)
+            else:
+                plt.plot(data[0], data[1], label = label, color = color,
                      linewidth = linewidth)
         else:
             ok = False
@@ -139,13 +143,18 @@ def plot_chart(chart_type, path_to_png, path_to_log_list):
             while not ok:
                 try:
                     marker = random_marker()
-                    plt.plot(data[0], data[1], label = label, color = color,
+                    if chart_type==4: ## learning rate vs iters; plot log y axis
+                        plt.semilogy(data[0], data[1], label = label, color = color,
+                             marker = marker, linewidth = linewidth)
+                    else:
+                        plt.plot(data[0], data[1], label = label, color = color,
                              marker = marker, linewidth = linewidth)
                     ok = True
                 except:
                     pass
-    legend_loc = get_legend_loc(chart_type)
-    plt.legend(loc = legend_loc, ncol = 1) # ajust ncol to fit the space
+    ## KM: removed legend
+    #legend_loc = get_legend_loc(chart_type)
+    #plt.legend(loc = legend_loc, ncol = 1) # ajust ncol to fit the space
     plt.title(get_chart_type_description(chart_type))
     plt.xlabel(x_axis_field)
     plt.ylabel(y_axis_field)
