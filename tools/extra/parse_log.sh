@@ -37,8 +37,18 @@ grep 'Testing net' $1 >> aux3.txt
 $DIR/extract_seconds.py aux3.txt aux4.txt
 
 # Generating
+## [KM] Add 0th iteration in aux0.txt
+sed '1s/^/0\n/' aux0.txt > /tmp/a0.txt
+mv /tmp/a0.txt aux0.txt
+## [KM] Add fake mAP for 0th iteration in aux1.txt (equal to first real loss)
+perl -0777 -i -npe 's/^([\d\.]+\s+)/\1\1/sm' aux1.txt
+## [KM] Add fake 0 sec for 0'th iteration in aux4.txt
+sed '1s/^/0.000000\n/' aux4.txt > /tmp/a4.txt
+mv /tmp/a4.txt aux4.txt
+
 echo '#Iters Seconds TestAccuracy TestLoss'> $LOG.test
 paste aux0.txt aux4.txt aux1.txt aux2.txt | column -t >> $LOG.test
+##--exit
 rm aux.txt aux0.txt aux1.txt aux2.txt aux3.txt aux4.txt
 
 # For extraction of time since this line contains the start time
@@ -52,6 +62,10 @@ grep ', lr = ' $1 | awk '{print $9}' > aux2.txt
 $DIR/extract_seconds.py aux.txt aux3.txt
 
 # Generating
+## [KM] Take 4th line loss and replicate it for first three lines in aux1.txt
+## This is to get more zoomed in plot by removing large losses in the beginning.
+perl -0777 -i -npe 's/^[\d\.]+\s+[\d\.]+\s+[\d\.]+\s+([\d\.]+\s+)/\1\1\1\1/sm' aux1.txt
 echo '#Iters Seconds TrainingLoss LearningRate'> $LOG.train
 paste aux0.txt aux3.txt aux1.txt aux2.txt | column -t >> $LOG.train
+##--exit
 rm aux.txt aux0.txt aux1.txt aux2.txt  aux3.txt
