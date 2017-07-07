@@ -246,10 +246,10 @@ use_batchnorm = False
 lr_mult = 1
 # Use different initial learning rate.
 if use_batchnorm:
-    base_lr = 0.0004
+    base_lr = 0.00004
 else:
     # A learning rate for batch_size = 1, num_gpus = 1.
-    base_lr = 0.00004
+    base_lr = 0.000004
 
 # Modify the job name if you want.
 job_name = "SSD_{}".format(resize)
@@ -390,8 +390,10 @@ if PRETRAINED:
 else:
   freeze_layers = []
 
-# Evaluate on whole test set.
-num_test_image = 371  ## Number of test images the DB (as in test.list and test_name_size.txt)
+# Evaluate on whole test set. Automated the calculation of num_test_image
+with open(name_size_file, 'r') as f:
+  num_test_image = len(f.readlines()) ## new:762; old:371 ## Number of test images the DB (as in test.list and test_name_size.txt)
+  print("================\nnum_test_image = {}\n================\n".format(num_test_image))
 test_batch_size = 8
 # Ideally test_batch_size should be divisible by num_test_image,
 # otherwise mAP will be slightly off the true value.
@@ -402,7 +404,16 @@ solver_param = {
     'base_lr': base_lr,
     'weight_decay': 0.0005,
     'lr_policy': "multistep",
-    'stepvalue': [60000, 110000, 190000],
+    ##        lr:  10^-4/4    10^-5/4    10^-6/4                (0.0001/25=0.000025)
+    ##     epocs:     33         61        105
+    #'stepvalue': [60000,    110000,    190000], ## used for 2017Jul6.mark1: 69% mAP at 200k. Peaked at 90k to 70%.
+    ##        lr:  10^-4     10^-5       10^-6      10^-7      (0.0001)
+    ##     epocs:     10        25          45         70
+    #'stepvalue': [18000,    45000,      80000,    126000], ## Tried with 10^-4 starting point. Peaked at 30k to 69.4%; dropped after that.
+    ## Best results with this lr:
+    #        lr:  10^-4      10^-5      10^-6                 (0.0001)
+    #     epocs:     33         61        105
+    'stepvalue': [60000,    110000,    190000], ## used for 2017Jul3.mark1: 70% mAP at 200k. Peaked at 90k to 72%.
     'gamma': 0.1,
     #'momentum': 0.9,
     'iter_size': iter_size,
