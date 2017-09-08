@@ -83,9 +83,9 @@ cv::Mat ReadImageToCVMat(const string& filename, const int height,
     const int width, const int min_dim, const int max_dim,
     const bool is_color) {
   cv::Mat cv_img;
-  int cv_read_flag = (is_color ? CV_LOAD_IMAGE_COLOR :
-    CV_LOAD_IMAGE_GRAYSCALE);
+  int cv_read_flag = (is_color ? CV_LOAD_IMAGE_COLOR : CV_LOAD_IMAGE_GRAYSCALE);
   cv::Mat cv_img_origin = cv::imread(filename, cv_read_flag);
+
   if (!cv_img_origin.data) {
     LOG(ERROR) << "Could not open or find file " << filename;
     return cv_img_origin;
@@ -162,11 +162,14 @@ bool ReadImageToDatum(const string& filename, const int label,
                                     is_color);
   if (cv_img.data) {
     if (encoding.size()) {
-      if ( (cv_img.channels() == 3) == is_color && !height && !width &&
+      // There was a bug below that forced 3-channel output if input has 3 channels
+      //if ( (cv_img.channels() == 3) == is_color && !height && !width &&
+      if ( ( (cv_img.channels() == 3) && is_color) && !height && !width && 
           !min_dim && !max_dim && matchExt(filename, encoding) ) {
         datum->set_channels(cv_img.channels());
         datum->set_height(cv_img.rows);
         datum->set_width(cv_img.cols);
+        //LOG(WARNING) << "Returning data from original file instead of from cv_img";
         return ReadFileToDatum(filename, label, datum);
       }
       EncodeCVMatToDatum(cv_img, encoding, datum);

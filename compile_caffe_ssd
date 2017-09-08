@@ -27,7 +27,7 @@ set ver = "1.0.0-ssd-cv$cv"
 echo "This will install Caffe SSD " $ver $pkgname
 
 #goto LDCONFIG
-#goto BUILD
+goto BUILD
 #cd build && goto INSTALL || exit (1)
 # Caffe SSD needs boost_regex
 sudo apt-get install libboost-regex-dev
@@ -37,7 +37,7 @@ BUILD:
 cd $cdir
 if (! -d build) mkdir build
 cd build
-#goto MAKE
+goto MAKE
 cmake -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_INSTALL_PREFIX=$prefix ..
 
 MAKE:
@@ -47,8 +47,8 @@ make pycaffe
 chkst
 make -j8 test
 chkst
-make runtest
-chkst
+#make runtest
+#chkst
 
 INSTALL:
 ##--sudo make install

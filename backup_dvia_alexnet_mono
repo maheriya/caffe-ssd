@@ -22,7 +22,7 @@ endif
 
 echo "Backing up results for ALEXNet - DVIADETDB into $backup_str suffix into models, jobs and results directories"
 
-foreach dir ( $cdir/models/ALEXNet/DVIADETDB $cdir/jobs/ALEXNet/DVIADETDB /IMAGESETS/DVIADetDB/DVIAdevkit/results_ssd_alexnet/DVIADETDB )
+foreach dir ( $cdir/models/ALEXNet/DVIADETDB $cdir/jobs/ALEXNet/DVIADETDB /IMAGESETS/DVIADetDB/DVIAdevkit.mono/results_ssd_alexnet/DVIADETDB )
   if ( -d "$dir/SSD_${sw}x${sh}" ) then
     set bkdir = "$dir/SSD_${sw}x${sh}.$backup_str"
     echo "Backing up to $bkdir"

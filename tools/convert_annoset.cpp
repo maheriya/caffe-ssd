@@ -161,10 +161,12 @@ int main(int argc, char** argv) {
           min_dim, max_dim, is_color, enc, datum);
     } else if (anno_type == "detection") {
       labelname = root_folder + boost::get<std::string>(lines[line_id].second);
+      //LOG(INFO) << "is_color? = " << is_color;
       status = ReadRichImageToAnnotatedDatum(filename, labelname, resize_height,
           resize_width, min_dim, max_dim, is_color, enc, type, label_type,
           name_to_label, &anno_datum);
       anno_datum.set_type(AnnotatedDatum_AnnotationType_BBOX);
+      //LOG(INFO) << "Image data shape: " << datum->height() << " x " << datum->width() << " x " << datum->channels();
     }
     if (status == false) {
       LOG(WARNING) << "Failed to read " << lines[line_id].first;

@@ -17,7 +17,14 @@ import sys
 
 PRETRAINED = True
 REDUCED = True
-GRAYSCALE = False
+GRAYSCALE = True
+
+if GRAYSCALE:
+  BASEDBDIR = "/IMAGESETS/DVIADetDB.pruned.curbmerged/DVIAdevkit.mono"
+  CHANNELS  = 1
+else:
+  BASEDBDIR = "/IMAGESETS/DVIADetDB.pruned.curbmerged/DVIAdevkit.rgb"
+  CHANNELS  = 3
 
 # Add extra layers on top of a "base" network (e.g. VGGNet or Inception or ZFNet).
 def AddExtraLayers(net, use_batchnorm=True, lr_mult=1):
@@ -85,11 +92,14 @@ resume_training = False
 # If true, Remove old model files.
 remove_old_models = False
 
-# The database file for training data. Created by data/DVIADETDB/create_data.sh
-#train_data = "/IMAGESETS/DVIADetDB/DVIAdevkit/DVIADETDB/lmdb/DVIADETDB_trainval_lmdb"
-train_data = "data/DVIADETDB/lmdb/DVIADETDB_trainval_lmdb"
-# The database file for testing data. Created by data/DVIADETDB/create_data.sh
-test_data = "data/DVIADETDB/lmdb/DVIADETDB_test_lmdb"
+# The database files for training and testing data. Created by .../DVIADETDB/create_data.sh
+train_data = "{}/DVIADETDB/lmdb/DVIADETDB_trainval_lmdb".format(BASEDBDIR)
+test_data  = "{}/DVIADETDB/lmdb/DVIADETDB_test_lmdb".format(BASEDBDIR)
+# the test image names and sizes. Created by .../DVIADETDB/create_list.sh
+name_size_file = "{}/DVIADETDB/test_name_size.txt".format(BASEDBDIR)
+# LabelMapItem.
+label_map_file = "{}/DVIADETDB/labelmap_dviadetdb.prototxt".format(BASEDBDIR)
+
 # Specify the batch sampler.
 ## KM: TODO: Try without resizing -- keeping the aspect ratio of the image intact without warping
 resize_width  = 300
@@ -182,7 +192,7 @@ batch_sampler = [
         },
         ]
 if GRAYSCALE:
-  mean_value = 104
+  mean_value = 117
 else:
   mean_value = [104, 117, 123]
 
@@ -212,8 +222,8 @@ train_transform_param = {
                 'brightness_prob': 0.5,
                 'brightness_delta': 32,
                 'contrast_prob': 0.5,
-                'contrast_lower': 0.5,
-                'contrast_upper': 1.5,
+                'contrast_lower': 0.6,
+                'contrast_upper': 1.4,
                 'hue_prob': hue_prob,
                 'hue_delta': 18,
                 'saturation_prob': sat_prob,
@@ -223,7 +233,7 @@ train_transform_param = {
                 },
         'expand_param': {
                 'prob': 0.5,
-                'max_expand_ratio': 4.0,
+                'max_expand_ratio': 3.0,
                 },
         'emit_constraint': {
             'emit_type': caffe_pb2.EmitConstraint.CENTER,
@@ -263,7 +273,7 @@ snapshot_dir = "models/ALEXNet/DVIADETDB/{}".format(job_name)
 # Directory which stores the job script and log file.
 job_dir = "jobs/ALEXNet/DVIADETDB/{}".format(job_name)
 # Directory which stores the detection results.
-output_result_dir = "/IMAGESETS/DVIADetDB/DVIAdevkit/results_ssd_alexnet/DVIADETDB/{}".format(job_name)
+output_result_dir = "{b}/results_ssd_alexnet/DVIADETDB/{j}".format(b=BASEDBDIR, j=job_name)
 
 # model definition files.
 train_net_file = "{}/train.prototxt".format(save_dir)
@@ -271,24 +281,19 @@ test_net_file = "{}/test.prototxt".format(save_dir)
 deploy_net_file = "{}/deploy.prototxt".format(save_dir)
 solver_file = "{}/solver.prototxt".format(save_dir)
 # snapshot prefix.
-snapshot_prefix = "{}/{}".format(snapshot_dir, model_name)
+snapshot_prefix = "{s}/{m}".format(s=snapshot_dir, m=model_name)
 # job script path.
-job_file = "{}/{}.sh".format(job_dir, model_name)
+job_file = "{j}/{m}.sh".format(j=job_dir, m=model_name)
 
-# Stores the test image names and sizes. Created by data/DVIADETDB/create_list.sh
-name_size_file = "data/DVIADETDB/test_name_size.txt"
-# The pretrained model. ZFNet.
 if PRETRAINED:
     # The pretrained model. ALEXNet (CaffeNet version).
     pretrain_model = "models/bvlc_reference_caffenet/bvlc_reference_caffenet.caffemodel"
 else:
     pretrain_model = ""
 
-# Stores LabelMapItem.
-label_map_file = "data/DVIADETDB/labelmap_dviadetdb.prototxt"
 
 # MultiBoxLoss parameters.
-num_classes = 4 # background + 3 classes
+num_classes = 3 # background + 3 classes
 share_location = True
 background_label_id=0
 train_on_diff_gt = True
@@ -360,8 +365,8 @@ gpulist = gpus.split(",")
 num_gpus = len(gpulist)
 
 # Divide the mini-batch to different GPUs.
-batch_size = 32
-accum_batch_size = 32
+batch_size = 48
+accum_batch_size = 48
 iter_size = accum_batch_size / batch_size
 solver_mode = P.Solver.CPU
 device_id = 0
@@ -413,12 +418,12 @@ solver_param = {
     ## Best results with this lr:
     #        lr:  10^-4      10^-5      10^-6                 (0.0001)
     #     epocs:     33         61        105
-    'stepvalue': [60000,    110000,    190000], ## used for 2017Jul3.mark1: 70% mAP at 200k. Peaked at 90k to 72%.
+    'stepvalue': [80000,    120000,    190000], ## used for 2017Jul3.mark1: 70% mAP at 200k. Peaked at 90k to 72%.
     'gamma': 0.1,
     #'momentum': 0.9,
     'iter_size': iter_size,
     'max_iter': 300000,
-    'snapshot': 50000,
+    'snapshot': 25000,
     'display': 100,
     'average_loss': 10,
     'type': "RMSProp",
@@ -557,7 +562,7 @@ with open(deploy_net_file, 'w') as f:
     net_param.name = '{}_deploy'.format(model_name)
     net_param.input.extend(['data'])
     net_param.input_shape.extend([
-        caffe_pb2.BlobShape(dim=[1, 3, resize_height, resize_width])])
+        caffe_pb2.BlobShape(dim=[1, CHANNELS, resize_height, resize_width])])
     print(net_param, file=f)
 shutil.copy(deploy_net_file, job_dir)
 
